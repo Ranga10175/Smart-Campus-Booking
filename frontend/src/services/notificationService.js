@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_URL = "http://localhost:8090/api/notifications";
+const API_URL = "http://localhost:8091/api/notifications";
 
 // Admin Notifications
 export const getAdminNotifications = () => axios.get(`${API_URL}/admin`);

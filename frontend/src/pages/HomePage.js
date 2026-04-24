@@ -40,6 +40,9 @@ function HomePage() {
                 <path d="M8 14h.01"></path>
                 <path d="M12 14h.01"></path>
                 <path d="M16 14h.01"></path>
+                <path d="M8 18h.01"></path>
+                <path d="M12 18h.01"></path>
+                <path d="M16 18h.01"></path>
               </svg>
             </div>
             <h3 className="font-['Sora',sans-serif] text-[1.5rem] text-[#0d1f4e] mb-3 font-bold">Resource Booking</h3>

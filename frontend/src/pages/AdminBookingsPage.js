@@ -173,7 +173,7 @@ function AdminBookingsPage() {
                 </svg>
             </div>
             <h3 className="text-2xl font-black text-slate-900 mb-3 tracking-tight">No Matches Found</h3>
-            <p className="text-slate-500 max-w-sm text-sm font-medium leading-relaxed">
+            <p className="text-slate-500 max-sm text-sm font-medium leading-relaxed">
               We couldn't find any bookings matching "{searchTerm}". Try refining your keywords.
             </p>
           </div>
@@ -312,4 +312,3 @@ function AdminBookingsPage() {
 }
 
 export default AdminBookingsPage;
-

@@ -9,9 +9,11 @@ import java.util.Optional;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
-    public UserService(UserRepository userRepository) {
+    public UserService(UserRepository userRepository, NotificationService notificationService) {
         this.userRepository = userRepository;
+        this.notificationService = notificationService;
     }
 
     public User registerUser(User user) {
@@ -19,7 +21,19 @@ public class UserService {
         if (existing.isPresent()) {
             throw new RuntimeException("An account with this IT Number already exists!");
         }
-        return userRepository.save(user);
+        
+        User saved = userRepository.save(user);
+        
+        // Create Welcome Notification
+        notificationService.createStudentNotification(
+            saved.getItNumber(),
+            "SYSTEM",
+            "Welcome to Smart Campus!",
+            "Welcome " + saved.getName() + "! Your account has been created successfully. You can now start booking campus resources.",
+            null
+        );
+        
+        return saved;
     }
 
     public User loginUser(String itNumber, String password) {

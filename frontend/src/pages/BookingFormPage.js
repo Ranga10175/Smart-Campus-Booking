@@ -31,6 +31,7 @@ function BookingFormPage() {
 
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -53,6 +54,7 @@ function BookingFormPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setErrorMessage("");
 
     try {
       await createBooking(formData);
@@ -74,7 +76,7 @@ function BookingFormPage() {
       const msg =
         error?.response?.data?.error ||
         "Error creating booking. Please ensure the backend is running and no times overlap.";
-      alert(msg);
+      setErrorMessage(msg);
       console.error(error);
     } finally {
       setLoading(false);
@@ -112,7 +114,7 @@ function BookingFormPage() {
               <span className="text-sm uppercase tracking-widest">View My Slots</span>
               <div className="w-10 h-10 rounded-2xl bg-slate-100 flex items-center justify-center group-hover/btn:bg-blue-600 group-hover/btn:text-white transition-colors">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2-2v12a2 2 0 002 2z" />
                 </svg>
               </div>
             </Link>
@@ -322,6 +324,34 @@ function BookingFormPage() {
                 className="w-full py-5 rounded-[2rem] bg-slate-900 text-white font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-slate-900/20 hover:bg-slate-800 transition-all active:scale-95"
               >
                 Go to My Bookings
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Error Modal */}
+      {errorMessage && (
+        <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-xl flex justify-center items-center z-[110] p-6 animate-in fade-in duration-300">
+          <div className="bg-white rounded-[3.5rem] w-full max-w-md overflow-hidden shadow-2xl border border-white/50 animate-in zoom-in-95 duration-300">
+            <div className="bg-rose-500 p-12 flex flex-col items-center text-white relative overflow-hidden">
+              <div className="absolute top-0 right-0 -mr-20 -mt-20 w-48 h-48 bg-white/20 rounded-full blur-3xl"></div>
+              <div className="relative z-10 w-24 h-24 bg-white/20 rounded-3xl backdrop-blur-md border border-white/30 flex items-center justify-center mb-8 shadow-2xl">
+                <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <h3 className="text-3xl font-black tracking-tight text-center leading-tight">Booking <br/>Failed</h3>
+            </div>
+            <div className="p-10 text-center space-y-8">
+              <p className="text-slate-500 font-medium leading-relaxed">
+                {errorMessage}
+              </p>
+              <button 
+                onClick={() => setErrorMessage("")} 
+                className="w-full py-5 rounded-[2rem] bg-slate-900 text-white font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-slate-900/20 hover:bg-slate-800 transition-all active:scale-95"
+              >
+                Try Again
               </button>
             </div>
           </div>
