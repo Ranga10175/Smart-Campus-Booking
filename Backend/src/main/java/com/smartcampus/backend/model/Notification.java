@@ -46,6 +46,11 @@ public class Notification {
      */
     private String relatedId;
 
+    /**
+     * Optional URL for direct action (e.g., /my-bookings)
+     */
+    private String actionUrl;
+
     private Instant createdAt;
     private Instant updatedAt;
     private String updatedBy;
@@ -133,6 +138,14 @@ public class Notification {
         this.relatedId = relatedId;
     }
 
+    public String getActionUrl() {
+        return actionUrl;
+    }
+
+    public void setActionUrl(String actionUrl) {
+        this.actionUrl = actionUrl;
+    }
+
     public Instant getCreatedAt() {
         return createdAt;
     }
@@ -157,4 +170,3 @@ public class Notification {
         this.updatedBy = updatedBy;
     }
 }
-

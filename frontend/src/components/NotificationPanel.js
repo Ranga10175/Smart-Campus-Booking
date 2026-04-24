@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "react-router-dom";
 
 const SOURCE_LABELS = {
     BOOKING: "Booking System",
@@ -258,6 +259,17 @@ function NotificationPanel({
                                         </div>
 
                                         <div className="flex items-center gap-2">
+                                            {notification.actionUrl && (
+                                                <Link
+                                                    to={notification.actionUrl}
+                                                    className="px-4 py-2 rounded-xl bg-slate-900 text-white font-bold text-[10px] uppercase tracking-widest shadow-lg shadow-slate-900/10 hover:bg-slate-800 transition-all active:scale-95 flex items-center gap-2"
+                                                >
+                                                    <span>View</span>
+                                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                                                    </svg>
+                                                </Link>
+                                            )}
                                             {!notification.read && (
                                                 <button
                                                     onClick={() => onMarkRead(notification.id)}

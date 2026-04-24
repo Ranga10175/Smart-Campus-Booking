@@ -3,6 +3,7 @@ package com.smartcampus.backend.controller;
 import com.smartcampus.backend.dto.BookingRequest;
 import com.smartcampus.backend.model.Booking;
 import com.smartcampus.backend.service.BookingService;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -23,7 +24,7 @@ public class BookingController {
     }
 
     @PostMapping
-    public ResponseEntity<?> createBooking(@RequestBody BookingRequest request) {
+    public ResponseEntity<?> createBooking(@Valid @RequestBody BookingRequest request) {
         try {
             return ResponseEntity.ok(bookingService.createBooking(request));
         } catch (RuntimeException ex) {

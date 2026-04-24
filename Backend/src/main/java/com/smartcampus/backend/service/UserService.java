@@ -30,7 +30,8 @@ public class UserService {
             "SYSTEM",
             "Welcome to Smart Campus!",
             "Welcome " + saved.getName() + "! Your account has been created successfully. You can now start booking campus resources.",
-            null
+            null,
+            "/create-booking"
         );
         
         return saved;

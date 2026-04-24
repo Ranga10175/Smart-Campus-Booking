@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { getAllBookings, approveBooking, rejectBooking, deleteBooking } from "../services/bookingService";
+import { formatTo12Hour } from "../services/timeUtils";
 
 function AdminBookingsPage() {
   const navigate = useNavigate();
@@ -208,7 +209,7 @@ function AdminBookingsPage() {
                         <div className="space-y-1">
                           <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Date & Time</div>
                           <div className="text-sm font-bold text-slate-900">{b.date}</div>
-                          <div className="text-[10px] font-bold text-slate-500 tracking-wider">{b.startTime} - {b.endTime}</div>
+                          <div className="text-[10px] font-bold text-slate-500 tracking-wider">{formatTo12Hour(b.startTime)} - {formatTo12Hour(b.endTime)}</div>
                         </div>
                       </div>
                       <div className="space-y-4 text-right">

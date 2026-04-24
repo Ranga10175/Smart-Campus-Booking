@@ -1,6 +1,76 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { getUserBookings, cancelBooking } from "../services/bookingService";
+import { formatTo12Hour } from "../services/timeUtils";
+
+// Helper to calculate time remaining
+function getTimeRemaining(date, time) {
+  const now = new Date();
+  const target = new Date(`${date}T${time}`);
+  const diff = target - now;
+  
+  if (diff <= 0) return { total: 0, hours: 0, minutes: 0, seconds: 0 };
+  
+  const seconds = Math.floor((diff / 1000) % 60);
+  const minutes = Math.floor((diff / 1000 / 60) % 60);
+  const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+  
+  return { total: diff, hours, minutes, seconds };
+}
+
+function CountdownTimer({ date, startTime, endTime, onStatusChange }) {
+  const [timeLeft, setTimeLeft] = useState(null);
+  const [status, setStatus] = useState("UPCOMING"); // UPCOMING, ACTIVE, ENDED
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const now = new Date();
+      const start = new Date(`${date}T${startTime}`);
+      const end = new Date(`${date}T${endTime}`);
+
+      if (now < start) {
+        setStatus("UPCOMING");
+        setTimeLeft(getTimeRemaining(date, startTime));
+      } else if (now >= start && now <= end) {
+        setStatus("ACTIVE");
+        setTimeLeft(getTimeRemaining(date, endTime));
+      } else {
+        setStatus("ENDED");
+        setTimeLeft(null);
+        clearInterval(timer);
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [date, startTime, endTime]);
+
+  if (status === "ENDED") return null;
+
+  return (
+    <div className={`mt-4 p-4 rounded-2xl flex items-center justify-between gap-4 animate-in fade-in slide-in-from-top-2 duration-500 ${
+      status === "ACTIVE" 
+      ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20" 
+      : "bg-slate-100 text-slate-600 border border-slate-200"
+    }`}>
+      <div className="flex items-center gap-3">
+        <div className={`w-2 h-2 rounded-full animate-pulse ${status === "ACTIVE" ? "bg-white" : "bg-blue-500"}`}></div>
+        <span className="text-[10px] font-black uppercase tracking-widest">
+          {status === "ACTIVE" ? "Live Session" : "Starts In"}
+        </span>
+      </div>
+      
+      {timeLeft && (
+        <div className="flex items-baseline gap-1 font-mono font-black tabular-nums">
+          {timeLeft.hours > 0 && <span>{timeLeft.hours.toString().padStart(2, '0')}:</span>}
+          <span>{timeLeft.minutes.toString().padStart(2, '0')}</span>
+          <span className="text-[8px] opacity-60">m</span>
+          <span>{timeLeft.seconds.toString().padStart(2, '0')}</span>
+          <span className="text-[8px] opacity-60">s</span>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function MyBookingsPage() {
   const [bookings, setBookings] = useState([]);
@@ -68,7 +138,7 @@ function MyBookingsPage() {
               My <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-300">Reservations</span>
             </h1>
             <p className="text-slate-400 text-lg md:text-xl font-medium leading-relaxed max-w-xl">
-              Manage your upcoming campus activities. Only fully approved bookings are displayed here for your reference.
+              Manage your upcoming campus activities. Use the **Live Monitor** to track session time in real-time.
             </p>
           </div>
           
@@ -142,7 +212,7 @@ function MyBookingsPage() {
               <div key={booking.id} className="group bg-white border border-slate-100 rounded-[2.5rem] p-8 transition-all duration-500 hover:shadow-2xl hover:shadow-slate-200/50 hover:-translate-y-1 relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full -mr-16 -mt-16 transition-transform group-hover:scale-150 duration-700"></div>
                 
-                <div className="relative z-10 space-y-8">
+                <div className="relative z-10 space-y-6">
                   <div className="flex items-start justify-between gap-4">
                     <div className="space-y-1">
                       <div className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Resource Type</div>
@@ -153,24 +223,18 @@ function MyBookingsPage() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-6 pt-4">
+                  <div className="grid grid-cols-2 gap-6 pt-2">
                     <div className="space-y-1">
                       <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Date</div>
                       <div className="text-sm font-bold text-slate-700">{booking.date}</div>
                     </div>
                     <div className="space-y-1 text-right">
                       <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Time Slot</div>
-                      <div className="text-sm font-bold text-slate-700">{booking.startTime} - {booking.endTime}</div>
-                    </div>
-                    <div className="space-y-1">
-                      <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Attendees</div>
-                      <div className="text-sm font-bold text-slate-700">{booking.expectedAttendees} Members</div>
-                    </div>
-                    <div className="space-y-1 text-right">
-                      <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Ref ID</div>
-                      <div className="text-sm font-bold text-slate-400 tracking-tighter">#{booking.id.slice(-6)}</div>
+                      <div className="text-sm font-bold text-slate-700">{formatTo12Hour(booking.startTime)} - {formatTo12Hour(booking.endTime)}</div>
                     </div>
                   </div>
+
+                  <CountdownTimer date={booking.date} startTime={booking.startTime} endTime={booking.endTime} />
 
                   <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
                     <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Purpose</div>

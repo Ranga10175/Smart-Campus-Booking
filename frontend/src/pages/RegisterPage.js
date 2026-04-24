@@ -8,8 +8,30 @@ function RegisterPage() {
   const [errorStr, setErrorStr] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const validateForm = () => {
+    if (formData.name.trim().length < 2) {
+      setErrorStr("Name must be at least 2 characters long.");
+      return false;
+    }
+    
+    const itRegex = /^IT\d+$/i;
+    if (!itRegex.test(formData.itNumber)) {
+      setErrorStr("IT Number must start with 'IT' followed by numbers (e.g. IT21000000).");
+      return false;
+    }
+
+    if (formData.password.length < 6) {
+      setErrorStr("Password must be at least 6 characters long.");
+      return false;
+    }
+
+    return true;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!validateForm()) return;
+
     setLoading(true);
     setErrorStr("");
     
@@ -19,70 +41,70 @@ function RegisterPage() {
       navigate("/login?registered=true");
     } catch (err) {
       setLoading(false);
-      setErrorStr(err.response?.data?.error || "Unable to reach server. Please restart backend!");
+      setErrorStr(err.response?.data?.error || "Unable to reach server.");
     }
   };
 
   return (
-    <div className="w-full mx-auto px-5 pb-12 text-left flex-1 animate-[fadeInUp_0.5s_ease_both] max-w-[480px] mt-16">
-      <div className="bg-white/55 backdrop-blur-md border border-white/85 rounded-3xl p-12 mb-6 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] transition-all duration-300 relative overflow-hidden text-center hover:bg-white/75 hover:border-white hover:-translate-y-1 hover:shadow-[0_12px_40px_0_rgba(31,38,135,0.1)]">
+    <div className="min-h-[80vh] flex justify-center items-center px-6">
+      <div className="bg-white rounded-[3rem] p-10 md:p-16 w-full max-w-xl shadow-2xl shadow-slate-200/50 border border-slate-100 text-left relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full -mr-16 -mt-16"></div>
         
-        <h2 className="font-['Sora',sans-serif] text-2xl font-bold text-[#0d1f4e] mb-2 tracking-[-0.02em] inline-block relative after:content-[''] after:absolute after:-bottom-1.5 after:left-[calc(50%-30px)] after:w-[60px] after:h-[3px] after:bg-gradient-to-r after:from-[#60a5fa] after:to-[#1e56c8] after:rounded-full">Student Registration</h2>
-        <p className="text-[#3b5080] text-[0.92rem] mb-8">Create your account to start booking campus resources.</p>
-        
-        {errorStr && (
-          <div className="bg-[#fee2e2] text-[#dc2626] p-3 rounded-xl mb-4 text-[0.9rem] font-semibold">
-            {errorStr}
-          </div>
-        )}
+        <div className="relative z-10 space-y-10">
+            <div className="space-y-2">
+                <h2 className="text-4xl font-black text-slate-900 tracking-tight leading-none">Join the Hub</h2>
+                <p className="text-slate-500 font-medium italic">Create your student account for SLIIT Malabe Campus.</p>
+            </div>
+            
+            {errorStr && <div className="p-4 bg-rose-50 border border-rose-100 text-rose-600 rounded-2xl text-sm font-bold">{errorStr}</div>}
 
-        <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
-          
-          <div className="text-left">
-            <label className="text-[0.85rem] font-semibold text-[#1a3270] mb-1.5 block">Full Name *</label>
-            <input 
-              type="text" 
-              placeholder="e.g. John Doe"
-              value={formData.name}
-              onChange={(e) => setFormData({...formData, name: e.target.value})}
-              className="w-full font-['Plus_Jakarta_Sans',sans-serif] text-[0.95rem] py-3 px-5 border-[1.5px] border-white/85 rounded-full bg-white/45 text-[#0d1f4e] transition-all duration-300 outline-none block placeholder-[#7a93c4] focus:border-[#1e56c8] focus:shadow-[0_0_0_4px_rgba(30,86,200,0.15)] focus:bg-white hover:not(:focus):border-[#7a93c4] hover:not(:focus):bg-white/65"
-              required 
-            />
-          </div>
+            <form onSubmit={handleSubmit} className="space-y-8">
+                <div className="space-y-6">
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 block">Full Name</label>
+                        <input 
+                            type="text" 
+                            placeholder="e.g. Malith Perera"
+                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 px-6 text-slate-900 font-bold outline-none focus:bg-white focus:border-blue-500 transition-all"
+                            value={formData.name}
+                            onChange={(e) => setFormData({...formData, name: e.target.value})}
+                            required 
+                        />
+                    </div>
 
-          <div className="text-left">
-            <label className="text-[0.85rem] font-semibold text-[#1a3270] mb-1.5 block">IT Number *</label>
-            <input 
-              type="text" 
-              placeholder="e.g. IT21000000"
-              value={formData.itNumber}
-              onChange={(e) => setFormData({...formData, itNumber: e.target.value})}
-              className="w-full font-['Plus_Jakarta_Sans',sans-serif] text-[0.95rem] py-3 px-5 border-[1.5px] border-white/85 rounded-full bg-white/45 text-[#0d1f4e] transition-all duration-300 outline-none block placeholder-[#7a93c4] focus:border-[#1e56c8] focus:shadow-[0_0_0_4px_rgba(30,86,200,0.15)] focus:bg-white hover:not(:focus):border-[#7a93c4] hover:not(:focus):bg-white/65"
-              required 
-            />
-          </div>
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 block">IT Number</label>
+                        <input 
+                            type="text" 
+                            placeholder="IT21000000"
+                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 px-6 text-slate-900 font-bold outline-none focus:bg-white focus:border-blue-500 transition-all"
+                            value={formData.itNumber}
+                            onChange={(e) => setFormData({...formData, itNumber: e.target.value})}
+                            required 
+                        />
+                    </div>
 
-          <div className="text-left">
-            <label className="text-[0.85rem] font-semibold text-[#1a3270] mb-1.5 block">Password *</label>
-            <input 
-              type="password" 
-              placeholder="••••••••"
-              value={formData.password}
-              onChange={(e) => setFormData({...formData, password: e.target.value})}
-              className="w-full font-['Plus_Jakarta_Sans',sans-serif] text-[0.95rem] py-3 px-5 border-[1.5px] border-white/85 rounded-full bg-white/45 text-[#0d1f4e] transition-all duration-300 outline-none block placeholder-[#7a93c4] focus:border-[#1e56c8] focus:shadow-[0_0_0_4px_rgba(30,86,200,0.15)] focus:bg-white hover:not(:focus):border-[#7a93c4] hover:not(:focus):bg-white/65"
-              required 
-            />
-          </div>
-          
-          <button type="submit" disabled={loading} className="w-full p-3.5 text-[0.95rem] mt-5 bg-gradient-to-br from-[#60a5fa] to-[#3b82f6] shadow-[0_6px_16px_rgba(96,165,250,0.3)] hover:from-[#3b82f6] hover:to-[#1e56c8] hover:shadow-[0_10px_24px_rgba(96,165,250,0.45)] text-white font-bold rounded-full border-none cursor-pointer flex justify-center items-center transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed">
-            {loading ? "Registering..." : "Create Account"}
-          </button>
-        </form>
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 block">Create Password</label>
+                        <input 
+                            type="password" 
+                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 px-6 text-slate-900 font-bold outline-none focus:bg-white focus:border-blue-500 transition-all"
+                            value={formData.password}
+                            onChange={(e) => setFormData({...formData, password: e.target.value})}
+                            required 
+                        />
+                    </div>
+                </div>
+                
+                <button type="submit" disabled={loading} className="w-full py-5 rounded-2xl bg-blue-600 text-white font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-blue-600/20 hover:bg-blue-700 transition-all active:scale-95">
+                    {loading ? "Creating Account..." : "Confirm Registration"}
+                </button>
+            </form>
 
-        <p className="mt-7 text-[0.9rem] text-[#3b5080]">
-          Already have an account? <Link to="/login" className="text-[#1e56c8] font-bold no-underline hover:text-[#1a3270]">Sign In</Link>
-        </p>
-
+            <p className="text-center text-sm font-medium text-slate-500">
+                Already have an account? <Link to="/login" className="text-blue-600 font-black hover:underline">Sign In Here</Link>
+            </p>
+        </div>
       </div>
     </div>
   );

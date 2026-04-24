@@ -110,7 +110,7 @@ public class BookingService {
         String studentMsg = "Your booking for " + booking.getResourceName() + " on " + booking.getDate() +
                 " (" + booking.getStartTime() + " - " + booking.getEndTime() + ") was rejected." +
                 (reason == null || reason.isBlank() ? "" : " Reason: " + reason);
-        notificationService.createStudentNotification(booking.getUserId(), "BOOKING_REJECTED", studentTitle, studentMsg, saved.getId());
+        notificationService.createStudentNotification(booking.getUserId(), "BOOKING_REJECTED", studentTitle, studentMsg, saved.getId(), "/create-booking");
 
         String adminTitle = "Booking rejected";
         String adminMsg = "Rejected booking request from " + booking.getUserName() + " for " + booking.getResourceName() + ".";

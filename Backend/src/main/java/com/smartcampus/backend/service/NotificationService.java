@@ -31,14 +31,22 @@ public class NotificationService {
     }
 
     public Notification createAdminNotification(String category, String title, String message, String relatedId) {
-        Notification notification = base(category, title, message, relatedId);
+        return createAdminNotification(category, title, message, relatedId, null);
+    }
+
+    public Notification createAdminNotification(String category, String title, String message, String relatedId, String actionUrl) {
+        Notification notification = base(category, title, message, relatedId, actionUrl);
         notification.setAudience(AUDIENCE_ADMIN);
         notification.setRecipientId(null);
         return notificationRepository.save(notification);
     }
 
     public Notification createStudentNotification(String recipientId, String category, String title, String message, String relatedId) {
-        Notification notification = base(category, title, message, relatedId);
+        return createStudentNotification(recipientId, category, title, message, relatedId, null);
+    }
+
+    public Notification createStudentNotification(String recipientId, String category, String title, String message, String relatedId, String actionUrl) {
+        Notification notification = base(category, title, message, relatedId, actionUrl);
         notification.setAudience(AUDIENCE_STUDENT);
         notification.setRecipientId(recipientId);
         return notificationRepository.save(notification);
@@ -116,13 +124,14 @@ public class NotificationService {
         return notificationRepository.save(notification);
     }
 
-    private Notification base(String category, String title, String message, String relatedId) {
+    private Notification base(String category, String title, String message, String relatedId, String actionUrl) {
         Notification notification = new Notification();
         notification.setSource("BOOKING");
         notification.setCategory(category);
         notification.setTitle(title);
         notification.setMessage(message);
         notification.setRelatedId(relatedId);
+        notification.setActionUrl(actionUrl);
         notification.setRead(false);
         notification.setDemo(false);
         notification.setCreatedAt(Instant.now());

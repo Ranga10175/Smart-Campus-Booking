@@ -2,6 +2,7 @@ package com.smartcampus.backend.controller;
 
 import com.smartcampus.backend.model.User;
 import com.smartcampus.backend.service.UserService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,7 +21,7 @@ public class UserController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<?> register(@RequestBody User user) {
+    public ResponseEntity<?> register(@Valid @RequestBody User user) {
         try {
             User registeredUser = userService.registerUser(user);
             return ResponseEntity.ok(registeredUser);
