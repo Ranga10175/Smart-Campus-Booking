@@ -230,13 +230,32 @@ function BookingFormPage() {
 
             <div className="grid md:grid-cols-2 gap-8">
               <div className="space-y-3">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2 block">Student ID</label>
-                <input type="text" name="userId" value={formData.userId} readOnly className="w-full border border-slate-200 rounded-3xl py-5 px-8 bg-slate-50 opacity-60 font-bold outline-none" required />
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2 block">Full Name</label>
+                <input 
+                  type="text" 
+                  name="userName" 
+                  value={formData.userName} 
+                  readOnly 
+                  className="w-full border border-slate-200 rounded-3xl py-5 px-8 bg-slate-50 opacity-60 font-bold outline-none" 
+                  required 
+                />
               </div>
               <div className="space-y-3">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2 block">Booking Date</label>
-                <input type="date" name="date" value={formData.date} onChange={handleChange} className="w-full bg-white/50 border border-slate-200 rounded-3xl py-5 px-8 font-bold outline-none focus:bg-white" required />
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2 block">Student ID</label>
+                <input 
+                  type="text" 
+                  name="userId" 
+                  value={formData.userId} 
+                  readOnly 
+                  className="w-full border border-slate-200 rounded-3xl py-5 px-8 bg-slate-50 opacity-60 font-bold outline-none" 
+                  required 
+                />
               </div>
+            </div>
+
+            <div className="space-y-3">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2 block">Booking Date</label>
+              <input type="date" name="date" value={formData.date} onChange={handleChange} className="w-full bg-white/50 border border-slate-200 rounded-3xl py-5 px-8 font-bold outline-none focus:bg-white" required />
             </div>
 
             <div className="grid md:grid-cols-2 gap-8">
