@@ -49,4 +49,37 @@ public class UserService {
         user.setPassword(null);
         return user;
     }
+
+    public User processSocialLogin(String email, String name, String clerkId) {
+        // Try finding by clerkId first, then email
+        Optional<User> byClerk = userRepository.findByClerkId(clerkId);
+        if (byClerk.isPresent()) return byClerk.get();
+
+        return userRepository.findByEmail(email).map(user -> {
+            user.setClerkId(clerkId); // Link existing user to Clerk
+            return userRepository.save(user);
+        }).orElseGet(() -> {
+            User newUser = new User();
+            newUser.setEmail(email);
+            newUser.setName(name);
+            newUser.setClerkId(clerkId);
+            
+            // Generate a temporary IT Number based on email or name
+            String tempIt = "IT" + System.currentTimeMillis() % 100000000;
+            newUser.setItNumber(tempIt);
+            newUser.setPassword("CLERK"); // Placeholder
+            
+            User saved = userRepository.save(newUser);
+            
+            notificationService.createStudentNotification(
+                saved.getItNumber(),
+                "SYSTEM",
+                "Welcome to Smart Campus!",
+                "Welcome " + saved.getName() + "! You've signed in using Clerk.",
+                null,
+                "/create-booking");
+                
+            return saved;
+        });
+    }
 }

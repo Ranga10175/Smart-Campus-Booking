@@ -1,5 +1,7 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Link, useLocation, useNavigate, Navigate } from "react-router-dom";
+import { useClerk, useAuth } from "@clerk/clerk-react";
+import ClerkSync from "./components/Auth/ClerkSync";
 import DashboardPage from "./pages/DashboardPage";
 import LandingPage from "./pages/LandingPage";
 import BookingFormPage from "./pages/BookingFormPage";
@@ -13,6 +15,7 @@ import AdminNotificationsPage from "./pages/AdminNotificationsPage";
 function Navigation() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { signOut } = useClerk();
   const isAuthPage = location.pathname === "/login" || location.pathname === "/register";
   const isLandingPage = location.pathname === "/";
   const isDashboard = location.pathname === "/dashboard";
@@ -50,6 +53,7 @@ function Navigation() {
         className="font-['Plus_Jakarta_Sans',sans-serif] text-[0.82rem] font-bold no-underline bg-transparent text-[#dc2626] px-6 py-3 rounded-full tracking-[0.04em] uppercase transition-all duration-300 border border-transparent shadow-none ml-2 hover:bg-red-600/10 hover:border-red-600/30 hover:-translate-y-[2px] hover:shadow-[0_4px_14px_rgba(220,38,38,0.1)] cursor-pointer outline-none"
         onClick={() => { 
           localStorage.clear(); 
+          signOut();
           navigate("/login");
         }}
       >
@@ -61,16 +65,36 @@ function Navigation() {
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
+  const { isLoaded, isSignedIn } = useAuth();
   const isLoggedIn = !!localStorage.getItem("currentUserId");
+
+  // 1. Wait for Clerk to load its state
+  if (!isLoaded) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-white">
+        <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p className="text-slate-500 font-bold animate-pulse">Initializing Secure Session...</p>
+      </div>
+    );
+  }
+
+  // 2. If Clerk says we are signed in, allow access (Sync will happen in background)
+  if (isSignedIn) {
+    return children;
+  }
+
+  // 3. If not signed in to Clerk and no local storage, redirect to login
   if (!isLoggedIn) {
     return <Navigate to="/login" replace />;
   }
+  
   return children;
 };
 
 function App() {
   return (
     <Router>
+      <ClerkSync />
       <div className="text-center min-h-screen flex flex-col">
         <Routes>
           <Route path="/" element={null} />
