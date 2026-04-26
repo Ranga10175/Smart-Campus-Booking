@@ -1,4 +1,0 @@
-com\smartcampus\backend\controller\UserController.class
-com\smartcampus\backend\service\UserService.class
-com\smartcampus\backend\model\User.class
-com\smartcampus\backend\repository\UserRepository.class
