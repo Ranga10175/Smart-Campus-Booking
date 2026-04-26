@@ -1,0 +1,2 @@
+package com.smartcampus.backend.ticketing.exception;
+public class NotFoundException extends RuntimeException { public NotFoundException(String message) { super(message); } }
