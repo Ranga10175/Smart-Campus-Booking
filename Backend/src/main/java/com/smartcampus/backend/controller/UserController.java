@@ -20,6 +20,9 @@ public class UserController {
         this.userService = userService;
     }
 
+
+// Booking Endpoints & validation
+
     @PostMapping("/register")
     public ResponseEntity<?> register(@Valid @RequestBody User user) {
         try {
@@ -32,20 +35,26 @@ public class UserController {
         }
     }
 
+
+
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody Map<String, String> credentials) {
         try {
             String itNumber = credentials.get("itNumber");
             String password = credentials.get("password");
             User loggedInUser = userService.loginUser(itNumber, password);
-            return ResponseEntity.ok(loggedInUser);
+            return ResponseEntity.ok(loggedInUser);   //Social Login Endpoint
         } catch (RuntimeException e) {
-            Map<String, String> body = new HashMap<>();
+            Map<String, String> body = new HashMap<>(); //Get Email from Clerk
             body.put("error", e.getMessage());
+
+            //Get Clerk ID
             return ResponseEntity.status(401).body(body); // 401 Unauthorized
         }
     }
 
+     //Process Login
+    
     @PostMapping("/social-login")
     public ResponseEntity<?> socialLogin(@RequestBody Map<String, String> data) {
         try {

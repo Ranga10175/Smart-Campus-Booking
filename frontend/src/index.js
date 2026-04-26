@@ -4,11 +4,15 @@ import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 
+
+//CLERK 3RD PARTY API - GOOGLE LOGIN
+
 import { ClerkProvider } from '@clerk/clerk-react';
 
+//ClerkProvider publishKey
 const PUBLISHABLE_KEY = "pk_test_YWxsb3dlZC1tYWxhbXV0ZS01Ni5jbGVyay5hY2NvdW50cy5kZXYk";
 
-const root = ReactDOM.createRoot(document.getElementById('root'));
+const root = ReactDOM.createRoot(document.getElementById('root')); //
 root.render(
   <React.StrictMode>
     <ClerkProvider publishableKey={PUBLISHABLE_KEY}>

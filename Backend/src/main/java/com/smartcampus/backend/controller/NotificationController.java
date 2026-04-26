@@ -17,7 +17,12 @@ public class NotificationController {
         this.notificationService = notificationService;
     }
 
+
+
     // Admin Notifications
+   //Notification Endpoints
+
+
     @GetMapping("/admin")
     public List<Notification> getAdminNotifications() {
         return notificationService.getAdminNotifications();

@@ -1,7 +1,7 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Link, useLocation, useNavigate, Navigate } from "react-router-dom";
-import { useClerk, useAuth } from "@clerk/clerk-react";
-import ClerkSync from "./components/Auth/ClerkSync";
+import { useClerk, useAuth } from "@clerk/clerk-react"; //Import Clerk Hooks
+import ClerkSync from "./components/Auth/ClerkSync";  //Import ClerkSync
 import DashboardPage from "./pages/DashboardPage";
 import LandingPage from "./pages/LandingPage";
 import BookingFormPage from "./pages/BookingFormPage";

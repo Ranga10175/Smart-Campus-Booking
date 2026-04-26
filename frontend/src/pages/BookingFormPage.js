@@ -17,6 +17,10 @@ const SLIIT_RESOURCES = [
 function BookingFormPage() {
   const navigate = useNavigate();
 
+
+//Duration Calculation & Validation Logic:
+
+
   const [formData, setFormData] = useState({
     resourceId: "",
     resourceName: "",
@@ -33,6 +37,8 @@ function BookingFormPage() {
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+
+//Real-time Availability Check
 
   const checkAvailability = useCallback(async (resourceId, date) => {
     if (!resourceId || !date) return;
@@ -99,6 +105,8 @@ function BookingFormPage() {
       setErrorMessage("You cannot book a resource for a past date.");
       return false;
     }
+
+    //validation 
 
     if (!formData.startTime || !formData.endTime) {
       setErrorMessage("Please specify both start and end times.");
@@ -258,6 +266,7 @@ function BookingFormPage() {
               <input type="date" name="date" value={formData.date} onChange={handleChange} className="w-full bg-white/50 border border-slate-200 rounded-3xl py-5 px-8 font-bold outline-none focus:bg-white" required />
             </div>
 
+          //TimeCount Feature
             <div className="grid md:grid-cols-2 gap-8">
               <div className="space-y-3">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2 block">Start Time</label>

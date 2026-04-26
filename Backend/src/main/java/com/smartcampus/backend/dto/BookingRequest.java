@@ -6,6 +6,8 @@ import jakarta.validation.constraints.Pattern;
 
 public class BookingRequest {
 
+    // BookingRequest DTO Validation
+    
     @NotBlank(message = "Resource selection is required")
     private String resourceId;
 

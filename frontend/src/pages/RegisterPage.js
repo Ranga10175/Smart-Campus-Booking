@@ -1,10 +1,10 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { registerUser, socialLogin } from "../services/authService";
-import { useClerk } from '@clerk/clerk-react';
+import { useClerk } from '@clerk/clerk-react';  //Clerk Import
 
 function RegisterPage() {
-  const { authenticateWithRedirect } = useClerk();
+  const { authenticateWithRedirect } = useClerk(); //useClerk Hook
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: "",
@@ -19,6 +19,8 @@ function RegisterPage() {
     setLoading(true);
     setErrorStr("");
 
+
+    //validation
     const nameRegex = /^[A-Za-z\s]+$/;
     if (!nameRegex.test(formData.name)) {
       setLoading(false);
@@ -55,7 +57,7 @@ function RegisterPage() {
       setLoading(true);
       await authenticateWithRedirect({
         strategy: strategy,
-        redirectUrl: "/dashboard",
+        redirectUrl: "/dashboard",   //Redirect URL
         redirectUrlComplete: "/dashboard"
       });
     } catch (err) {
@@ -65,7 +67,7 @@ function RegisterPage() {
   };
 
   const handleGoogleClick = () => {
-    handleSocialRegister("oauth_google");
+    handleSocialRegister("oauth_google"); //Google Button Handler	
   };
 
   return (
