@@ -74,7 +74,8 @@ function DashboardPage() {
         </div>
 
         {/* Module 3: Maintenance Tickets */}
-        <div className="bg-white/60 backdrop-blur-xl border border-white/80 rounded-[32px] p-10 h-full flex flex-col items-center text-center shadow-[0_20px_50px_rgba(31,38,135,0.05)] opacity-80 cursor-default relative overflow-hidden">
+        <Link to="/maintenance/student" className="group no-underline">
+        <div className="bg-white/60 backdrop-blur-xl border border-white/80 rounded-[32px] p-10 h-full flex flex-col items-center text-center shadow-[0_20px_50px_rgba(31,38,135,0.08)] transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_30px_60px_rgba(31,38,135,0.12)] group-hover:bg-white/80 relative overflow-hidden">
           <div className="w-20 h-20 rounded-2xl bg-[#fbbf24] flex justify-center items-center mb-8 shadow-[0_10px_20px_rgba(251,191,36,0.3)]">
             <svg viewBox="0 0 24 24" className="w-10 h-10 fill-none stroke-white stroke-2 stroke-linecap-round stroke-linejoin-round">
               <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
@@ -84,13 +85,10 @@ function DashboardPage() {
           <p className="text-[#3b5080] text-[0.95rem] leading-relaxed px-4">
             Report issues and track maintenance progress.
           </p>
-          <div className="mt-6">
-            <span className="inline-flex items-center text-[0.7rem] font-bold uppercase tracking-widest px-4 py-1.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200 shadow-sm">
-              Coming Soon
-            </span>
-          </div>
+          <div className="absolute top-4 right-4 w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></div>
         </div>
 
+        </Link>
         {/* Module 4: Notifications (Now Active) */}
         <Link to={isAdmin ? "/admin-notifications" : "/my-notifications"} className="group no-underline">
           <div className="bg-white/60 backdrop-blur-xl border border-white/80 rounded-[32px] p-10 h-full flex flex-col items-center text-center shadow-[0_20px_50px_rgba(31,38,135,0.08)] transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_30px_60px_rgba(31,38,135,0.12)] group-hover:bg-white/80 relative overflow-hidden">
