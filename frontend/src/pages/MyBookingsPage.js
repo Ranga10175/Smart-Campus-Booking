@@ -1,35 +1,110 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
+import { Link } from "react-router-dom";
 import { getUserBookings, cancelBooking } from "../services/bookingService";
+import { formatTo12Hour } from "../services/timeUtils";
+
+// Helper to calculate time remaining
+function getTimeRemaining(date, time) {
+  const now = new Date();
+  const target = new Date(`${date}T${time}`);
+  const diff = target - now;
+  
+  if (diff <= 0) return { total: 0, hours: 0, minutes: 0, seconds: 0 };
+  
+  const seconds = Math.floor((diff / 1000) % 60);
+  const minutes = Math.floor((diff / 1000 / 60) % 60);
+  const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+  
+  return { total: diff, hours, minutes, seconds };
+}
+
+function CountdownTimer({ date, startTime, endTime, onStatusChange }) {
+  const [timeLeft, setTimeLeft] = useState(null);
+  const [status, setStatus] = useState("UPCOMING"); // UPCOMING, ACTIVE, ENDED
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const now = new Date();
+      const start = new Date(`${date}T${startTime}`);
+      const end = new Date(`${date}T${endTime}`);
+
+      if (now < start) {
+        setStatus("UPCOMING");
+        setTimeLeft(getTimeRemaining(date, startTime));
+      } else if (now >= start && now <= end) {
+        setStatus("ACTIVE");
+        setTimeLeft(getTimeRemaining(date, endTime));
+      } else {
+        setStatus("ENDED");
+        setTimeLeft(null);
+        clearInterval(timer);
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [date, startTime, endTime]);
+
+  if (status === "ENDED") return null;
+
+  return (
+    <div className={`mt-4 p-4 rounded-2xl flex items-center justify-between gap-4 animate-in fade-in slide-in-from-top-2 duration-500 ${
+      status === "ACTIVE" 
+      ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20" 
+      : "bg-slate-100 text-slate-600 border border-slate-200"
+    }`}>
+      <div className="flex items-center gap-3">
+        <div className={`w-2 h-2 rounded-full animate-pulse ${status === "ACTIVE" ? "bg-white" : "bg-blue-500"}`}></div>
+        <span className="text-[10px] font-black uppercase tracking-widest">
+          {status === "ACTIVE" ? "Live Session" : "Starts In"}
+        </span>
+      </div>
+      
+      {timeLeft && (
+        <div className="flex items-baseline gap-1 font-mono font-black tabular-nums">
+          {timeLeft.hours > 0 && <span>{timeLeft.hours.toString().padStart(2, '0')}:</span>}
+          <span>{timeLeft.minutes.toString().padStart(2, '0')}</span>
+          <span className="text-[8px] opacity-60">m</span>
+          <span>{timeLeft.seconds.toString().padStart(2, '0')}</span>
+          <span className="text-[8px] opacity-60">s</span>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function MyBookingsPage() {
   const [bookings, setBookings] = useState([]);
   const [userIdInput, setUserIdInput] = useState(
-    localStorage.getItem("currentUserId") || "U001"
+    localStorage.getItem("currentUserId") || ""
   );
-  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [showCancelSuccess, setShowCancelSuccess] = useState(false);
   const [cancelConfirmId, setCancelConfirmId] = useState(null);
 
-  const loadBookings = async () => {
-    if (!userIdInput) return;
+  const loadBookings = useCallback(async () => {
+    if (!userIdInput) {
+      setBookings([]);
+      return;
+    }
+    setLoading(true);
     try {
       const response = await getUserBookings(userIdInput);
-      
       // Filter out bookings so it ONLY displays after Admin approves it
       const approvedBookings = response.data.filter(b => b.status === "APPROVED");
       setBookings(approvedBookings);
     } catch (error) {
       console.error(error);
       setBookings([]);
-    }
-  };
-
-  useEffect(() => {
-    if (userIdInput) {
-      loadBookings();
+    } finally {
+      setLoading(false);
     }
   }, [userIdInput]);
 
-  const handleCancel = (id) => {
+  useEffect(() => {
+    loadBookings();
+  }, [loadBookings]);
+
+  const handleCancelClick = (id) => {
     setCancelConfirmId(id);
   };
 
@@ -38,7 +113,7 @@ function MyBookingsPage() {
       try {
         await cancelBooking(cancelConfirmId);
         setCancelConfirmId(null);
-        setShowCancelModal(true);
+        setShowCancelSuccess(true);
         loadBookings();
       } catch (error) {
         console.error(error);
@@ -47,73 +122,192 @@ function MyBookingsPage() {
   };
 
   return (
-    <div className="max-w-[680px] w-full mx-auto px-5 pb-12 text-left flex-1 animate-[fadeInUp_0.5s_ease_both] mt-4">
-      <h2 className="font-['Sora',sans-serif] text-2xl font-bold text-[#0d1f4e] mb-7 tracking-[-0.02em] inline-block relative after:content-[''] after:absolute after:-bottom-1.5 after:left-0 after:w-[60%] after:h-[3px] after:bg-gradient-to-r after:from-[#60a5fa] after:to-[#1e56c8] after:rounded-full">My Approved Bookings</h2>
-      
-      <div className="bg-white/55 backdrop-blur-md border border-white/85 rounded-3xl p-7 mb-6 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] transition-all duration-300 relative overflow-hidden animate-[fadeInUp_0.4s_ease_both] hover:bg-white/75 hover:border-white hover:-translate-y-1 hover:shadow-[0_12px_40px_0_rgba(31,38,135,0.1)]">
-        <div className="flex gap-2.5 items-center flex-wrap">
-          <label className="font-semibold text-[#1a3270] whitespace-nowrap m-0 text-[0.85rem]">
-            View Bookings for User ID:
-          </label>
-          <input
-            type="text"
-            value={userIdInput}
-            onChange={(e) => setUserIdInput(e.target.value)}
-            className="w-[200px] font-['Plus_Jakarta_Sans',sans-serif] text-[0.95rem] py-3 px-5 border-[1.5px] border-white/85 rounded-full bg-white/45 text-[#0d1f4e] transition-all duration-300 outline-none block placeholder-[#7a93c4] focus:border-[#1e56c8] focus:shadow-[0_0_0_4px_rgba(30,86,200,0.15)] focus:bg-white hover:not(:focus):border-[#7a93c4] hover:not(:focus):bg-white/65"
-            placeholder="e.g. U001"
-          />
-          <button onClick={loadBookings} className="px-4 py-2.5 bg-gradient-to-br from-[#60a5fa] to-[#3b82f6] shadow-[0_4px_16px_rgba(96,165,250,0.35)] hover:from-[#3b82f6] hover:to-[#1e56c8] hover:shadow-[0_8px_24px_rgba(96,165,250,0.45)] active:from-[#1e56c8] active:to-[#1a3270] text-white font-['Plus_Jakarta_Sans',sans-serif] text-[0.85rem] font-bold rounded-full transition-all duration-300 tracking-wide uppercase border-none cursor-pointer w-auto mt-0 hover:-translate-y-[3px] active:translate-y-0">Refresh</button>
+    <div className="max-w-6xl mx-auto space-y-12 pb-24 text-left animate-in fade-in slide-in-from-bottom-4 duration-1000">
+      {/* Header Section */}
+      <div className="relative group rounded-[3rem] overflow-hidden bg-slate-900 p-10 md:p-16 text-white shadow-2xl shadow-slate-950/40">
+        <div className="absolute top-0 right-0 -mr-32 -mt-32 w-96 h-96 bg-blue-500/20 rounded-full blur-[120px]"></div>
+        <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '32px 32px' }}></div>
+        
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-12">
+          <div className="max-w-2xl space-y-6">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/10 backdrop-blur-md border border-blue-500/20">
+              <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-200">Personal Schedule</span>
+            </div>
+            <h1 className="text-4xl md:text-6xl font-black tracking-tight leading-[1.1]">
+              My <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-300">Reservations</span>
+            </h1>
+            <p className="text-slate-400 text-lg md:text-xl font-medium leading-relaxed max-w-xl">
+              Manage your upcoming campus activities. Use the **Live Monitor** to track session time in real-time.
+            </p>
+          </div>
+          
+          <div className="flex-shrink-0">
+            <Link to="/create-booking" className="group/btn inline-flex items-center gap-4 px-8 py-5 rounded-[2rem] bg-white text-slate-950 font-black shadow-2xl transition-all hover:bg-blue-50 active:scale-95">
+              <span className="text-sm uppercase tracking-widest">New Booking</span>
+              <div className="w-10 h-10 rounded-2xl bg-slate-100 flex items-center justify-center group-hover/btn:bg-blue-600 group-hover/btn:text-white transition-colors">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
+                </svg>
+              </div>
+            </Link>
+          </div>
         </div>
       </div>
 
-      {bookings.length === 0 ? (
-        <p className="bg-white/55 backdrop-blur-md border-2 border-dashed border-white/80 rounded-[24px] p-10 text-center text-[#3b5080] text-base font-medium">No approved bookings found for User ID: <strong className="font-bold text-[#0d1f4e] uppercase tracking-wide">{userIdInput}</strong>. Note: Bookings will only appear here <em className="italic">after</em> an Admin approves them!</p>
-      ) : (
-        bookings.map((b) => (
-          <div className="bg-white/55 backdrop-blur-md border border-white/85 rounded-3xl p-7 mb-6 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] transition-all duration-300 relative overflow-hidden animate-[fadeInUp_0.4s_ease_both] hover:bg-white/75 hover:border-white hover:-translate-y-1 hover:shadow-[0_12px_40px_0_rgba(31,38,135,0.1)]" key={b.id}>
-            <p className="text-[0.92rem] text-[#3b5080] py-1.5 flex items-baseline gap-2 border-b border-white/40"><strong className="font-bold text-[#0d1f4e] min-w-[100px] text-[0.85rem] uppercase tracking-wide">Resource Name:</strong> {b.resourceName}</p>
-            <p className="text-[0.92rem] text-[#3b5080] py-1.5 flex items-baseline gap-2 border-b border-white/40"><strong className="font-bold text-[#0d1f4e] min-w-[100px] text-[0.85rem] uppercase tracking-wide">Resource ID:</strong> {b.resourceId}</p>
-            <p className="text-[0.92rem] text-[#3b5080] py-1.5 flex items-baseline gap-2 border-b border-white/40"><strong className="font-bold text-[#0d1f4e] min-w-[100px] text-[0.85rem] uppercase tracking-wide">User Name:</strong> {b.userName}</p>
-            <p className="text-[0.92rem] text-[#3b5080] py-1.5 flex items-baseline gap-2 border-b border-white/40"><strong className="font-bold text-[#0d1f4e] min-w-[100px] text-[0.85rem] uppercase tracking-wide">Date:</strong> {b.date}</p>
-            <p className="text-[0.92rem] text-[#3b5080] py-1.5 flex items-baseline gap-2 border-b border-white/40"><strong className="font-bold text-[#0d1f4e] min-w-[100px] text-[0.85rem] uppercase tracking-wide">Time:</strong> {b.startTime} - {b.endTime}</p>
-            <p className="text-[0.92rem] text-[#3b5080] py-1.5 flex items-baseline gap-2 border-b border-white/40"><strong className="font-bold text-[#0d1f4e] min-w-[100px] text-[0.85rem] uppercase tracking-wide">Attendees:</strong> {b.expectedAttendees}</p>
-            <p className="text-[0.92rem] text-[#3b5080] py-1.5 flex items-baseline gap-2 border-b border-white/40"><strong className="font-bold text-[#0d1f4e] min-w-[100px] text-[0.85rem] uppercase tracking-wide">Purpose:</strong> {b.purpose}</p>
-            <p className="text-[0.92rem] text-[#3b5080] py-1.5 flex items-baseline gap-2 mb-3"><strong className="font-bold text-[#0d1f4e] min-w-[100px] text-[0.85rem] uppercase tracking-wide">Status:</strong> <span className="inline-flex items-center text-xs font-bold uppercase tracking-[0.08em] px-[0.85rem] py-[0.35rem] rounded-full shadow-[0_2px_6px_rgba(0,0,0,0.05)] bg-[#d1fae5] text-[#059669]">APPROVED</span></p>
-
-            <div className="flex gap-3 flex-wrap mt-4">
-              <button 
-                onClick={() => handleCancel(b.id)} 
-                className="font-['Plus_Jakarta_Sans',sans-serif] text-[0.85rem] font-bold px-5.5 py-2.5 rounded-full transition-all duration-300 tracking-wide bg-gradient-to-br from-red-500 to-[#b91c1c] text-white shadow-[0_4px_14px_rgba(220,38,38,0.35)] uppercase outline-none hover:-translate-y-[3px] hover:shadow-[0_8px_20px_rgba(220,38,38,0.5)] hover:from-red-400 hover:to-red-600 border-none cursor-pointer w-auto mt-0">
-                Cancel Booking
-              </button>
+      {/* Filter Section */}
+      <div className="bg-white/40 backdrop-blur-2xl border border-white/60 rounded-[2.5rem] p-6 shadow-xl shadow-blue-500/5">
+        <div className="flex flex-col md:flex-row items-center gap-6">
+          <div className="flex-grow w-full md:w-auto relative group">
+            <div className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
             </div>
+            <input
+              type="text"
+              value={userIdInput}
+              onChange={(e) => setUserIdInput(e.target.value)}
+              placeholder="Enter Student ID to filter..."
+              className="w-full bg-white/50 border border-slate-200 rounded-2xl py-4 pl-14 pr-6 text-slate-900 font-bold tracking-tight focus:bg-white focus:border-blue-500 focus:shadow-2xl focus:shadow-blue-500/10 outline-none transition-all"
+            />
           </div>
-        ))
-      )}
+          <button 
+            onClick={loadBookings}
+            disabled={loading}
+            className="w-full md:w-auto px-8 py-4 rounded-2xl bg-slate-900 text-white font-black text-[10px] uppercase tracking-widest shadow-xl shadow-slate-900/20 hover:bg-slate-800 transition-all active:scale-95 disabled:opacity-50"
+          >
+            {loading ? "Syncing..." : "Refresh List"}
+          </button>
+        </div>
+      </div>
 
+      {/* Bookings List */}
+      <div className="space-y-8">
+        <div className="flex items-center justify-between px-2">
+            <div className="flex items-center gap-4">
+                <div className="h-8 w-1.5 bg-emerald-500 rounded-full shadow-[0_0_15px_rgba(16,185,129,0.4)]"></div>
+                <h2 className="text-2xl font-black text-slate-900 tracking-tight">Approved Slots</h2>
+            </div>
+            <span className="px-4 py-1.5 rounded-full bg-slate-100 border border-slate-200 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                {bookings.length} Results
+            </span>
+        </div>
+
+        {bookings.length === 0 ? (
+          <div className="bg-white/40 backdrop-blur-md border border-dashed border-slate-200 rounded-[3rem] p-24 text-center flex flex-col items-center">
+            <div className="w-20 h-20 bg-slate-50 rounded-3xl flex items-center justify-center mb-8 border border-slate-100">
+                <svg className="w-10 h-10 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+            </div>
+            <h3 className="text-2xl font-black text-slate-900 mb-3 tracking-tight">No Active Bookings</h3>
+            <p className="text-slate-500 max-w-sm text-sm font-medium leading-relaxed">
+              Once an admin approves your request, it will appear here. Try searching with your Student ID above.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {bookings.map((booking) => (
+              <div key={booking.id} className="group bg-white border border-slate-100 rounded-[2.5rem] p-8 transition-all duration-500 hover:shadow-2xl hover:shadow-slate-200/50 hover:-translate-y-1 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full -mr-16 -mt-16 transition-transform group-hover:scale-150 duration-700"></div>
+                
+                <div className="relative z-10 space-y-6">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="space-y-1">
+                      <div className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Resource Type</div>
+                      <h3 className="text-xl font-black text-slate-900 tracking-tight">{booking.resourceName}</h3>
+                    </div>
+                    <div className="px-4 py-1.5 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm">
+                      Approved
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-6 pt-2">
+                    <div className="space-y-1">
+                      <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Date</div>
+                      <div className="text-sm font-bold text-slate-700">{booking.date}</div>
+                    </div>
+                    <div className="space-y-1 text-right">
+                      <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Time Slot</div>
+                      <div className="text-sm font-bold text-slate-700">{formatTo12Hour(booking.startTime)} - {formatTo12Hour(booking.endTime)}</div>
+                    </div>
+                  </div>
+
+                  <CountdownTimer date={booking.date} startTime={booking.startTime} endTime={booking.endTime} />
+
+                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Purpose</div>
+                    <p className="text-xs font-bold text-slate-600 line-clamp-1">{booking.purpose}</p>
+                  </div>
+
+                  <div className="pt-4 flex items-center justify-between border-t border-slate-50">
+                    <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                        </div>
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{booking.userName}</span>
+                    </div>
+                    <button 
+                      onClick={() => handleCancelClick(booking.id)} 
+                      className="px-5 py-2.5 rounded-xl bg-rose-50 text-rose-600 font-black text-[10px] uppercase tracking-widest border border-rose-100 hover:bg-rose-500 hover:text-white hover:border-rose-500 transition-all active:scale-95"
+                    >
+                      Cancel Slot
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Confirmation Modal */}
       {cancelConfirmId && (
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-[6px] flex justify-center items-center z-[1000] animate-[fadeInUp_0.2s_ease]">
-          <div className="bg-white/55 backdrop-blur-md border border-white/85 p-10 m-0 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] rounded-[24px] w-[360px] text-center">
-            <h3 className="font-['Sora',sans-serif] text-[1.35rem] text-[#d97706] mb-2 font-bold select-none">Wait! Cancel Booking?</h3>
-            <p className="text-[#3b5080] mb-6 text-[0.95rem]">Are you absolutely sure you want to cancel this approved booking?</p>
-            <div className="flex gap-2.5 justify-center">
-              <button onClick={() => setCancelConfirmId(null)} className="font-['Plus_Jakarta_Sans',sans-serif] text-[0.85rem] font-bold px-5.5 py-2.5 rounded-full transition-all duration-300 tracking-wide bg-transparent text-[#1a3270] shadow-none border-[1.5px] border-white uppercase outline-none hover:-translate-y-[2px] cursor-pointer w-auto mt-0 hover:bg-white/40">No, keep it</button>
-              <button onClick={confirmCancel} className="font-['Plus_Jakarta_Sans',sans-serif] text-[0.85rem] font-bold px-5.5 py-2.5 rounded-full transition-all duration-300 tracking-wide bg-gradient-to-br from-[#d97706] to-[#b45309] text-white shadow-[0_4px_16px_rgba(217,119,6,0.35)] uppercase border-none outline-none hover:-translate-y-[3px] hover:shadow-[0_8px_20px_rgba(217,119,6,0.5)] cursor-pointer w-auto mt-0 hover:from-yellow-500 hover:to-amber-700">Yes, cancel</button>
+        <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-xl flex justify-center items-center z-[100] p-6 animate-in fade-in duration-300">
+          <div className="bg-white rounded-[3rem] w-full max-w-sm overflow-hidden shadow-2xl border border-white/50 animate-in zoom-in-95 duration-300">
+            <div className="p-10 text-center space-y-6">
+              <div className="w-20 h-20 bg-amber-50 rounded-3xl flex items-center justify-center mx-auto border border-amber-100">
+                <svg className="w-10 h-10 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <h3 className="text-2xl font-black tracking-tight text-slate-900">Cancel Slot?</h3>
+              <p className="text-slate-500 font-medium text-sm leading-relaxed">
+                This will release the resource for other students. This action is permanent.
+              </p>
+              <div className="flex gap-4">
+                <button onClick={() => setCancelConfirmId(null)} className="flex-1 py-4 rounded-2xl text-slate-400 font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 transition-all">Keep Slot</button>
+                <button onClick={confirmCancel} className="flex-1 py-4 rounded-2xl bg-rose-600 text-white font-black text-[10px] uppercase tracking-widest shadow-xl shadow-rose-600/20 hover:bg-rose-700 transition-all">Cancel Now</button>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {showCancelModal && (
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-[6px] flex justify-center items-center z-[1000] animate-[fadeInUp_0.3s_ease]">
-          <div className="bg-white/55 backdrop-blur-md border border-white/85 p-10 m-0 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] rounded-[24px] w-[360px] text-center">
-            <svg viewBox="0 0 24 24" className="w-[72px] h-[72px] mx-auto mb-6 fill-none stroke-[#dc2626] stroke-2 stroke-linecap-round stroke-linejoin-round drop-shadow-[0_4px_6px_rgba(220,38,38,0.2)]">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-              <polyline points="22 4 12 14.01 9 11.01"></polyline>
-            </svg>
-            <h3 className="font-['Sora',sans-serif] text-[1.35rem] text-[#0d1f4e] mb-2 font-bold select-none">Cancelled!</h3>
-            <p className="text-[#3b5080] mb-6 text-[0.95rem]">Your booking has been successfully cancelled.</p>
-            <button onClick={() => setShowCancelModal(false)} className="w-full font-['Plus_Jakarta_Sans',sans-serif] text-[1rem] font-bold p-[0.85rem] mt-0 rounded-full transition-all duration-300 tracking-wide bg-gradient-to-br from-[#1e56c8] to-[#1a3270] text-white shadow-[0_4px_12px_rgba(30,86,200,0.25)] uppercase outline-none border-none cursor-pointer hover:-translate-y-[3px] hover:shadow-[0_8px_20px_rgba(30,86,200,0.4)] hover:from-[#3b82f6] hover:to-[#1e56c8] active:translate-y-0">OK</button>
+      {/* Success Modal */}
+      {showCancelSuccess && (
+        <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-xl flex justify-center items-center z-[100] p-6 animate-in fade-in duration-300">
+          <div className="bg-white rounded-[3rem] w-full max-w-sm overflow-hidden shadow-2xl border border-white/50 animate-in zoom-in-95 duration-300">
+            <div className="p-10 text-center space-y-6">
+              <div className="w-20 h-20 bg-emerald-50 rounded-3xl flex items-center justify-center mx-auto border border-emerald-100">
+                <svg className="w-10 h-10 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <h3 className="text-2xl font-black tracking-tight text-slate-900">Success!</h3>
+              <p className="text-slate-500 font-medium text-sm leading-relaxed">
+                Your reservation has been cancelled and the slot is now free.
+              </p>
+              <button 
+                onClick={() => setShowCancelSuccess(false)} 
+                className="w-full py-4 rounded-2xl bg-slate-900 text-white font-black text-[10px] uppercase tracking-widest shadow-xl shadow-slate-900/20 hover:bg-slate-800 transition-all"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

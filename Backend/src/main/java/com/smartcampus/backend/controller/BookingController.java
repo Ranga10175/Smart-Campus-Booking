@@ -3,8 +3,12 @@ package com.smartcampus.backend.controller;
 import com.smartcampus.backend.dto.BookingRequest;
 import com.smartcampus.backend.model.Booking;
 import com.smartcampus.backend.service.BookingService;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -20,8 +24,14 @@ public class BookingController {
     }
 
     @PostMapping
-    public Booking createBooking(@RequestBody BookingRequest request) {
-        return bookingService.createBooking(request);
+    public ResponseEntity<?> createBooking(@Valid @RequestBody BookingRequest request) {
+        try {
+            return ResponseEntity.ok(bookingService.createBooking(request));
+        } catch (RuntimeException ex) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", ex.getMessage() == null ? "Unable to create booking" : ex.getMessage());
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
+        }
     }
 
     @GetMapping

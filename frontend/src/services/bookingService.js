@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_URL = "http://localhost:8080/api/bookings";
+const API_URL = "http://localhost:8091/api/bookings";
 
 export const createBooking = (data) => axios.post(API_URL, data);
 export const getAllBookings = () => axios.get(API_URL);

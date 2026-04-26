@@ -5,15 +5,20 @@ import com.smartcampus.backend.model.Booking;
 import com.smartcampus.backend.repository.BookingRepository;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 
 @Service
 public class BookingService {
 
     private final BookingRepository bookingRepository;
+    private final NotificationService notificationService;
 
-    public BookingService(BookingRepository bookingRepository) {
+    public BookingService(BookingRepository bookingRepository, NotificationService notificationService) {
         this.bookingRepository = bookingRepository;
+        this.notificationService = notificationService;
     }
 
     public Booking createBooking(BookingRequest request) {
@@ -51,7 +56,19 @@ public class BookingService {
         booking.setExpectedAttendees(request.getExpectedAttendees());
         booking.setStatus("PENDING");
 
-        return bookingRepository.save(booking);
+        Booking saved = bookingRepository.save(booking);
+
+        String adminTitle = "New booking request";
+        String adminMsg = request.getUserName() + " requested " + request.getResourceName() +
+                " on " + request.getDate() + " (" + request.getStartTime() + " - " + request.getEndTime() + ").";
+        notificationService.createAdminNotification("BOOKING_CREATED", adminTitle, adminMsg, saved.getId());
+
+        String studentTitle = "Booking request submitted";
+        String studentMsg = "Your request for " + request.getResourceName() + " on " + request.getDate() +
+                " (" + request.getStartTime() + " - " + request.getEndTime() + ") is pending approval.";
+        notificationService.createStudentNotification(request.getUserId(), "BOOKING_CREATED", studentTitle, studentMsg, saved.getId());
+
+        return saved;
     }
 
     public List<Booking> getAllBookings() {
@@ -67,7 +84,18 @@ public class BookingService {
                 .orElseThrow(() -> new RuntimeException("Booking not found"));
 
         booking.setStatus("APPROVED");
-        return bookingRepository.save(booking);
+        Booking saved = bookingRepository.save(booking);
+
+        String studentTitle = "Booking approved";
+        String studentMsg = "Your booking for " + booking.getResourceName() + " on " + booking.getDate() +
+                " (" + booking.getStartTime() + " - " + booking.getEndTime() + ") has been approved.";
+        notificationService.createStudentNotification(booking.getUserId(), "BOOKING_APPROVED", studentTitle, studentMsg, saved.getId());
+
+        String adminTitle = "Booking approved";
+        String adminMsg = "Approved booking request from " + booking.getUserName() + " for " + booking.getResourceName() + ".";
+        notificationService.createAdminNotification("BOOKING_APPROVED", adminTitle, adminMsg, saved.getId());
+
+        return saved;
     }
 
     public Booking rejectBooking(String id, String reason) {
@@ -76,7 +104,19 @@ public class BookingService {
 
         booking.setStatus("REJECTED");
         booking.setRejectionReason(reason);
-        return bookingRepository.save(booking);
+        Booking saved = bookingRepository.save(booking);
+
+        String studentTitle = "Booking rejected";
+        String studentMsg = "Your booking for " + booking.getResourceName() + " on " + booking.getDate() +
+                " (" + booking.getStartTime() + " - " + booking.getEndTime() + ") was rejected." +
+                (reason == null || reason.isBlank() ? "" : " Reason: " + reason);
+        notificationService.createStudentNotification(booking.getUserId(), "BOOKING_REJECTED", studentTitle, studentMsg, saved.getId(), "/create-booking");
+
+        String adminTitle = "Booking rejected";
+        String adminMsg = "Rejected booking request from " + booking.getUserName() + " for " + booking.getResourceName() + ".";
+        notificationService.createAdminNotification("BOOKING_REJECTED", adminTitle, adminMsg, saved.getId());
+
+        return saved;
     }
 
     public Booking cancelBooking(String id) {
@@ -84,7 +124,18 @@ public class BookingService {
                 .orElseThrow(() -> new RuntimeException("Booking not found"));
 
         booking.setStatus("CANCELLED");
-        return bookingRepository.save(booking);
+        Booking saved = bookingRepository.save(booking);
+
+        String studentTitle = "Booking cancelled";
+        String studentMsg = "Your booking for " + booking.getResourceName() + " on " + booking.getDate() +
+                " (" + booking.getStartTime() + " - " + booking.getEndTime() + ") has been cancelled.";
+        notificationService.createStudentNotification(booking.getUserId(), "BOOKING_CANCELLED", studentTitle, studentMsg, saved.getId());
+
+        String adminTitle = "Booking cancelled";
+        String adminMsg = booking.getUserName() + " cancelled a booking for " + booking.getResourceName() + ".";
+        notificationService.createAdminNotification("BOOKING_CANCELLED", adminTitle, adminMsg, saved.getId());
+
+        return saved;
     }
 
     public void deleteBooking(String id) {
@@ -93,7 +144,31 @@ public class BookingService {
 
     private boolean isOverlapping(String start1, String end1,
                                   String start2, String end2) {
-        return start1.compareTo(end2) < 0 &&
-               end1.compareTo(start2) > 0;
+        LocalTime s1 = parseTime(start1);
+        LocalTime e1 = parseTime(end1);
+        LocalTime s2 = parseTime(start2);
+        LocalTime e2 = parseTime(end2);
+
+        if (!e1.isAfter(s1)) {
+            throw new RuntimeException("End time must be after start time");
+        }
+        if (!e2.isAfter(s2)) {
+            // Existing data might be invalid; treat as overlapping to be safe.
+            return true;
+        }
+
+        return s1.isBefore(e2) && e1.isAfter(s2);
+    }
+
+    private LocalTime parseTime(String value) {
+        if (value == null || value.isBlank()) {
+            throw new RuntimeException("Invalid time value");
+        }
+        try {
+            // Accepts both 08:00 and 8:00
+            return LocalTime.parse(value.trim(), DateTimeFormatter.ofPattern("H:mm"));
+        } catch (DateTimeParseException ex) {
+            throw new RuntimeException("Invalid time format. Expected HH:mm");
+        }
     }
 }

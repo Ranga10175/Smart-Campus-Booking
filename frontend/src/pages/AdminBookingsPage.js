@@ -1,22 +1,27 @@
-import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useEffect, useState, useCallback } from "react";
+import { useNavigate, Link } from "react-router-dom";
 import { getAllBookings, approveBooking, rejectBooking, deleteBooking } from "../services/bookingService";
+import { formatTo12Hour } from "../services/timeUtils";
 
 function AdminBookingsPage() {
   const navigate = useNavigate();
   const [bookings, setBookings] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [showDeleteSuccess, setShowDeleteSuccess] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
-  const loadBookings = async () => {
+  const loadBookings = useCallback(async () => {
+    setLoading(true);
     try {
       const response = await getAllBookings();
       setBookings(response.data);
     } catch (error) {
       console.error(error);
+    } finally {
+      setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     const userId = localStorage.getItem("currentUserId");
@@ -25,12 +30,11 @@ function AdminBookingsPage() {
       return;
     }
     loadBookings();
-  }, [navigate]);
+  }, [navigate, loadBookings]);
 
   const handleApprove = async (id) => {
     try {
       await approveBooking(id);
-      alert("Booking successfully approved!");
       loadBookings();
     } catch (error) {
       console.error(error);
@@ -42,7 +46,6 @@ function AdminBookingsPage() {
     if (reason) {
       try {
         await rejectBooking(id, reason);
-        alert("Booking rejected.");
         loadBookings();
       } catch (error) {
         console.error(error);
@@ -50,7 +53,7 @@ function AdminBookingsPage() {
     }
   };
 
-  const handleDelete = (id) => {
+  const handleDeleteClick = (id) => {
     setDeleteConfirmId(id);
   };
 
@@ -59,11 +62,11 @@ function AdminBookingsPage() {
       try {
         await deleteBooking(deleteConfirmId);
         setDeleteConfirmId(null);
-        setShowDeleteModal(true);
+        setShowDeleteSuccess(true);
         loadBookings();
       } catch (error) {
         console.error(error);
-        alert("Error deleting booking. Please ensure the backend is running after changes.");
+        alert("Error deleting booking. Please ensure the backend is running.");
       }
     }
   };
@@ -78,105 +81,230 @@ function AdminBookingsPage() {
     );
   });
 
-  const getStatusBadge = (status) => {
+  const getStatusConfig = (status) => {
     switch (status) {
-      case 'APPROVED': return <span className="inline-flex items-center text-xs font-bold uppercase tracking-[0.08em] px-[0.85rem] py-[0.35rem] rounded-full shadow-[0_2px_6px_rgba(0,0,0,0.05)] bg-[#d1fae5] text-[#059669]">APPROVED</span>;
-      case 'REJECTED': return <span className="inline-flex items-center text-xs font-bold uppercase tracking-[0.08em] px-[0.85rem] py-[0.35rem] rounded-full shadow-[0_2px_6px_rgba(0,0,0,0.05)] bg-[#fee2e2] text-[#dc2626]">REJECTED</span>;
-      case 'PENDING': return <span className="inline-flex items-center text-xs font-bold uppercase tracking-[0.08em] px-[0.85rem] py-[0.35rem] rounded-full shadow-[0_2px_6px_rgba(0,0,0,0.05)] bg-[#ede9fe] text-[#7c3aed]">PENDING</span>;
-      case 'CANCELLED': return <span className="inline-flex items-center text-xs font-bold uppercase tracking-[0.08em] px-[0.85rem] py-[0.35rem] rounded-full shadow-[0_2px_6px_rgba(0,0,0,0.05)] bg-white/80 text-[#3b5080]">CANCELLED</span>;
-      default: return <span className="inline-flex items-center text-xs font-bold uppercase tracking-[0.08em] px-[0.85rem] py-[0.35rem] rounded-full shadow-[0_2px_6px_rgba(0,0,0,0.05)] bg-white/80 text-[#3b5080]">{status}</span>;
+      case 'APPROVED': return { label: 'Approved', color: 'emerald', bg: 'bg-emerald-50', text: 'text-emerald-600', dot: 'bg-emerald-500' };
+      case 'REJECTED': return { label: 'Rejected', color: 'rose', bg: 'bg-rose-50', text: 'text-rose-600', dot: 'bg-rose-500' };
+      case 'PENDING': return { label: 'Pending', color: 'amber', bg: 'bg-amber-50', text: 'text-amber-600', dot: 'bg-amber-500' };
+      case 'CANCELLED': return { label: 'Cancelled', color: 'slate', bg: 'bg-slate-50', text: 'text-slate-600', dot: 'bg-slate-400' };
+      default: return { label: status, color: 'slate', bg: 'bg-slate-50', text: 'text-slate-600', dot: 'bg-slate-400' };
     }
   };
 
   return (
-    <div className="max-w-[680px] w-full mx-auto px-5 pb-12 text-left flex-1 animate-[fadeInUp_0.5s_ease_both]">
-      <h2 className="font-['Sora',sans-serif] text-2xl font-bold text-[#0d1f4e] mb-7 tracking-[-0.02em] inline-block relative after:content-[''] after:absolute after:-bottom-1.5 after:left-0 after:w-[60%] after:h-[3px] after:bg-gradient-to-r after:from-[#60a5fa] after:to-[#1e56c8] after:rounded-full">Admin Bookings Management</h2>
-
-      <div className="bg-white/55 backdrop-blur-md border border-white/85 rounded-3xl p-7 mb-6 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] transition-all duration-300 relative overflow-hidden animate-[fadeInUp_0.4s_ease_both] hover:bg-white/75 hover:border-white hover:-translate-y-1 hover:shadow-[0_12px_40px_0_rgba(31,38,135,0.1)]">
-        <div className="flex gap-2.5 items-center flex-wrap">
-          <label className="font-semibold text-[#1a3270] whitespace-nowrap m-0 text-[0.85rem]">
-            Search Bookings:
-          </label>
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="flex-1 min-w-[200px] font-['Plus_Jakarta_Sans',sans-serif] text-[0.95rem] py-3 px-5 border-[1.5px] border-white/85 rounded-full bg-white/45 text-[#0d1f4e] transition-all duration-300 outline-none block placeholder-[#7a93c4] focus:border-[#1e56c8] focus:shadow-[0_0_0_4px_rgba(30,86,200,0.15)] focus:bg-white hover:not(:focus):border-[#7a93c4] hover:not(:focus):bg-white/65"
-            placeholder="Search by User ID, Name, Resource, or Status..."
-          />
+    <div className="max-w-7xl mx-auto space-y-12 pb-24 text-left animate-in fade-in slide-in-from-bottom-4 duration-1000">
+      {/* Header Section */}
+      <div className="relative group rounded-[3rem] overflow-hidden bg-slate-900 p-10 md:p-16 text-white shadow-2xl shadow-slate-950/40">
+        <div className="absolute top-0 right-0 -mr-32 -mt-32 w-96 h-96 bg-blue-500/20 rounded-full blur-[120px]"></div>
+        <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '32px 32px' }}></div>
+        
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-12">
+          <div className="max-w-2xl space-y-6">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/10 backdrop-blur-md border border-blue-500/20">
+              <span className="w-2 h-2 rounded-full bg-blue-400"></span>
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-200">System Oversight</span>
+            </div>
+            <h1 className="text-4xl md:text-6xl font-black tracking-tight leading-[1.1]">
+              Management <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-300">Desk</span>
+            </h1>
+            <p className="text-slate-400 text-lg md:text-xl font-medium leading-relaxed max-w-xl">
+              Control and oversee all campus resource reservations. Process pending requests and manage existing schedules with precision.
+            </p>
+          </div>
+          
+          <div className="flex-shrink-0">
+            <Link to="/admin-notifications" className="group/btn inline-flex items-center gap-4 px-8 py-5 rounded-[2rem] bg-white text-slate-950 font-black shadow-2xl transition-all hover:bg-blue-50 active:scale-95">
+              <span className="text-sm uppercase tracking-widest">Notification Hub</span>
+              <div className="w-10 h-10 rounded-2xl bg-slate-100 flex items-center justify-center group-hover/btn:bg-blue-600 group-hover/btn:text-white transition-colors">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+              </div>
+            </Link>
+          </div>
         </div>
       </div>
 
-      {filteredBookings.length === 0 ? (
-        <p className="bg-white/55 backdrop-blur-md border-2 border-dashed border-white/80 rounded-[24px] p-10 text-center text-[#3b5080] text-base font-medium">No bookings found matching your search term: "{searchTerm}".</p>
-      ) : (
-        filteredBookings.map((b) => (
-          <div className="bg-white/55 backdrop-blur-md border border-white/85 rounded-3xl p-7 mb-6 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] transition-all duration-300 relative overflow-hidden animate-[fadeInUp_0.4s_ease_both] hover:bg-white/75 hover:border-white hover:-translate-y-1 hover:shadow-[0_12px_40px_0_rgba(31,38,135,0.1)]" key={b.id}>
-            <p className="text-[0.92rem] text-[#3b5080] py-1.5 flex items-baseline gap-2 border-b border-white/40"><strong className="font-bold text-[#0d1f4e] min-w-[100px] text-[0.85rem] uppercase tracking-wide">Resource Name:</strong> {b.resourceName}</p>
-            <p className="text-[0.92rem] text-[#3b5080] py-1.5 flex items-baseline gap-2 border-b border-white/40"><strong className="font-bold text-[#0d1f4e] min-w-[100px] text-[0.85rem] uppercase tracking-wide">Resource ID:</strong> {b.resourceId}</p>
-            <p className="text-[0.92rem] text-[#3b5080] py-1.5 flex items-baseline gap-2 border-b border-white/40"><strong className="font-bold text-[#0d1f4e] min-w-[100px] text-[0.85rem] uppercase tracking-wide">User ID:</strong> {b.userId}</p>
-            <p className="text-[0.92rem] text-[#3b5080] py-1.5 flex items-baseline gap-2 border-b border-white/40"><strong className="font-bold text-[#0d1f4e] min-w-[100px] text-[0.85rem] uppercase tracking-wide">User Name:</strong> {b.userName}</p>
-            <p className="text-[0.92rem] text-[#3b5080] py-1.5 flex items-baseline gap-2 border-b border-white/40"><strong className="font-bold text-[#0d1f4e] min-w-[100px] text-[0.85rem] uppercase tracking-wide">Date:</strong> {b.date}</p>
-            <p className="text-[0.92rem] text-[#3b5080] py-1.5 flex items-baseline gap-2 border-b border-white/40"><strong className="font-bold text-[#0d1f4e] min-w-[100px] text-[0.85rem] uppercase tracking-wide">Time:</strong> {b.startTime} - {b.endTime}</p>
-            <p className="text-[0.92rem] text-[#3b5080] py-1.5 flex items-baseline gap-2 border-b border-white/40"><strong className="font-bold text-[#0d1f4e] min-w-[100px] text-[0.85rem] uppercase tracking-wide">Attendees:</strong> {b.expectedAttendees}</p>
-            <p className="text-[0.92rem] text-[#3b5080] py-1.5 flex items-baseline gap-2 border-b border-white/40"><strong className="font-bold text-[#0d1f4e] min-w-[100px] text-[0.85rem] uppercase tracking-wide">Purpose:</strong> {b.purpose}</p>
-            <p className="text-[0.92rem] text-[#3b5080] py-1.5 flex items-baseline gap-2 mb-3"><strong className="font-bold text-[#0d1f4e] min-w-[100px] text-[0.85rem] uppercase tracking-wide">Status:</strong> {getStatusBadge(b.status)}</p>
-
-            {b.status === "PENDING" && (
-              <div className="mt-4 flex gap-2.5 flex-wrap">
-                <button 
-                  onClick={() => handleApprove(b.id)} 
-                  className="w-auto font-['Plus_Jakarta_Sans',sans-serif] text-[0.85rem] font-bold px-5.5 py-2.5 rounded-full transition-all duration-300 tracking-wide bg-gradient-to-br from-[#1e56c8] to-[#1a3270] text-white shadow-[0_4px_12px_rgba(30,86,200,0.25)] uppercase outline-none hover:-translate-y-[3px] hover:shadow-[0_8px_20px_rgba(30,86,200,0.4)] hover:from-[#3b82f6] hover:to-[#1e56c8] active:translate-y-0 active:shadow-[0_2px_6px_rgba(30,86,200,0.3)] border-none cursor-pointer">
-                  Approve Booking
-                </button>
-                <button 
-                  onClick={() => handleReject(b.id)} 
-                  className="w-auto font-['Plus_Jakarta_Sans',sans-serif] text-[0.85rem] font-bold px-5.5 py-2.5 rounded-full transition-all duration-300 tracking-wide bg-gradient-to-br from-[#ef4444] to-[#b91c1c] text-white shadow-[0_4px_16px_rgba(220,38,38,0.35)] uppercase outline-none hover:-translate-y-[3px] hover:shadow-[0_8px_20px_rgba(220,38,38,0.5)] hover:from-red-400 hover:to-red-600 active:translate-y-0 border-none cursor-pointer">
-                  Reject Booking
-                </button>
-                <button 
-                  onClick={() => handleDelete(b.id)} 
-                  className="w-auto font-['Plus_Jakarta_Sans',sans-serif] text-[0.85rem] font-bold px-5.5 py-2.5 rounded-full transition-all duration-300 tracking-wide bg-gradient-to-br from-[#64748b] to-[#475569] text-white shadow-[0_4px_16px_rgba(100,116,139,0.35)] uppercase outline-none hover:-translate-y-[3px] hover:shadow-[0_8px_20px_rgba(100,116,139,0.5)] hover:from-slate-400 hover:to-slate-600 active:translate-y-0 border-none cursor-pointer">
-                  Delete
-                </button>
-              </div>
-            )}
-            {b.status !== "PENDING" && (
-              <div className="mt-4 flex gap-2.5 flex-wrap">
-                <button 
-                  onClick={() => handleDelete(b.id)} 
-                  className="w-auto font-['Plus_Jakarta_Sans',sans-serif] text-[0.85rem] font-bold px-5.5 py-2.5 rounded-full transition-all duration-300 tracking-wide bg-gradient-to-br from-[#ef4444] to-[#b91c1c] text-white shadow-[0_4px_16px_rgba(220,38,38,0.35)] uppercase outline-none hover:-translate-y-[3px] hover:shadow-[0_8px_20px_rgba(220,38,38,0.5)] hover:from-red-400 hover:to-red-600 active:translate-y-0 border-none cursor-pointer">
-                  Delete Booking
-                </button>
-              </div>
-            )}
+      {/* Control Bar */}
+      <div className="bg-white/40 backdrop-blur-2xl border border-white/60 rounded-[2.5rem] p-6 shadow-xl shadow-blue-500/5">
+        <div className="flex flex-col md:flex-row items-center gap-6">
+          <div className="flex-grow w-full md:w-auto relative group">
+            <div className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Filter by Resource, Student, ID or Status..."
+              className="w-full bg-white/50 border border-slate-200 rounded-2xl py-4 pl-14 pr-6 text-slate-900 font-bold tracking-tight focus:bg-white focus:border-blue-500 focus:shadow-2xl focus:shadow-blue-500/10 outline-none transition-all"
+            />
           </div>
-        ))
-      )}
+          <button 
+            onClick={loadBookings}
+            disabled={loading}
+            className="w-full md:w-auto px-8 py-4 rounded-2xl bg-slate-900 text-white font-black text-[10px] uppercase tracking-widest shadow-xl shadow-slate-900/20 hover:bg-slate-800 transition-all active:scale-95 disabled:opacity-50"
+          >
+            {loading ? "Updating..." : "Sync All Data"}
+          </button>
+        </div>
+      </div>
 
+      {/* Grid List */}
+      <div className="space-y-8">
+        <div className="flex items-center justify-between px-2">
+            <div className="flex items-center gap-4">
+                <div className="h-8 w-1.5 bg-blue-600 rounded-full shadow-[0_0_15px_rgba(37,99,235,0.4)]"></div>
+                <h2 className="text-2xl font-black text-slate-900 tracking-tight">Active Registrations</h2>
+            </div>
+            <div className="flex gap-4">
+              <span className="px-4 py-1.5 rounded-full bg-slate-100 border border-slate-200 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                  {filteredBookings.length} Managed Items
+              </span>
+            </div>
+        </div>
+
+        {filteredBookings.length === 0 ? (
+          <div className="bg-white/40 backdrop-blur-md border border-dashed border-slate-200 rounded-[3rem] p-24 text-center flex flex-col items-center">
+            <div className="w-20 h-20 bg-slate-50 rounded-3xl flex items-center justify-center mb-8 border border-slate-100">
+                <svg className="w-10 h-10 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+            </div>
+            <h3 className="text-2xl font-black text-slate-900 mb-3 tracking-tight">No Matches Found</h3>
+            <p className="text-slate-500 max-sm text-sm font-medium leading-relaxed">
+              We couldn't find any bookings matching "{searchTerm}". Try refining your keywords.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {filteredBookings.map((b) => {
+              const status = getStatusConfig(b.status);
+              return (
+                <div key={b.id} className="group bg-white border border-slate-100 rounded-[3rem] p-8 transition-all duration-500 hover:shadow-2xl hover:shadow-slate-200/50 hover:-translate-y-1 relative overflow-hidden flex flex-col">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full -mr-16 -mt-16 transition-transform group-hover:scale-150 duration-700"></div>
+                  
+                  <div className="relative z-10 flex-grow space-y-8">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="space-y-1">
+                        <div className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Reference #{b.id.slice(-6)}</div>
+                        <h3 className="text-xl font-black text-slate-900 tracking-tight">{b.resourceName}</h3>
+                        <p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest">{b.resourceId}</p>
+                      </div>
+                      <div className={`px-4 py-1.5 ${status.bg} ${status.text} border border-${status.color}-100 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm flex items-center gap-2`}>
+                        <div className={`w-1.5 h-1.5 rounded-full ${status.dot}`}></div>
+                        {status.label}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-8 p-6 bg-slate-50 rounded-[2rem] border border-slate-100">
+                      <div className="space-y-4">
+                        <div className="space-y-1">
+                          <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Student Details</div>
+                          <div className="text-sm font-bold text-slate-900">{b.userName}</div>
+                          <div className="text-[10px] font-bold text-slate-500 tracking-wider">{b.userId}</div>
+                        </div>
+                        <div className="space-y-1">
+                          <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Date & Time</div>
+                          <div className="text-sm font-bold text-slate-900">{b.date}</div>
+                          <div className="text-[10px] font-bold text-slate-500 tracking-wider">{formatTo12Hour(b.startTime)} - {formatTo12Hour(b.endTime)}</div>
+                        </div>
+                      </div>
+                      <div className="space-y-4 text-right">
+                        <div className="space-y-1">
+                          <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Attendees</div>
+                          <div className="text-sm font-bold text-slate-900">{b.expectedAttendees} Capacity</div>
+                        </div>
+                        <div className="space-y-1">
+                          <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Purpose</div>
+                          <div className="text-xs font-bold text-slate-600 leading-relaxed italic line-clamp-2">"{b.purpose}"</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="pt-6 border-t border-slate-100 flex flex-wrap items-center justify-between gap-4">
+                      {b.status === "PENDING" ? (
+                        <div className="flex gap-3 w-full sm:w-auto">
+                          <button 
+                            onClick={() => handleApprove(b.id)} 
+                            className="flex-1 sm:flex-none px-6 py-3 rounded-2xl bg-slate-900 text-white font-black text-[10px] uppercase tracking-widest shadow-xl shadow-slate-900/10 hover:bg-slate-800 transition-all active:scale-95"
+                          >
+                            Approve
+                          </button>
+                          <button 
+                            onClick={() => handleReject(b.id)} 
+                            className="flex-1 sm:flex-none px-6 py-3 rounded-2xl bg-rose-50 text-rose-600 font-black text-[10px] uppercase tracking-widest border border-rose-100 hover:bg-rose-500 hover:text-white transition-all active:scale-95"
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic">Processed</div>
+                      )}
+                      
+                      <button 
+                        onClick={() => handleDeleteClick(b.id)} 
+                        className="p-3 rounded-2xl text-slate-300 hover:text-rose-600 hover:bg-rose-50 transition-all group/del active:scale-95"
+                        title="Delete record"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Modals */}
       {deleteConfirmId && (
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-[6px] flex justify-center items-center z-[1000] animate-[fadeInUp_0.2s_ease]">
-          <div className="bg-white/55 backdrop-blur-md border border-white/85 p-10 m-0 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] rounded-[24px] w-[360px] text-center">
-            <h3 className="font-['Sora',sans-serif] text-[1.35rem] text-[#dc2626] mb-2 font-bold select-none">Confirm Deletion</h3>
-            <p className="text-[#3b5080] mb-6 text-[0.95rem]">Are you sure you want to permanently delete this booking?</p>
-            <div className="flex gap-2.5 justify-center">
-              <button onClick={() => setDeleteConfirmId(null)} className="font-['Plus_Jakarta_Sans',sans-serif] text-[0.85rem] font-bold px-5.5 py-2.5 rounded-full transition-all duration-300 tracking-wide bg-transparent text-[#1a3270] shadow-none border-[1.5px] border-white uppercase outline-none hover:-translate-y-[2px] cursor-pointer w-auto mt-0 hover:bg-white/40">Cancel</button>
-              <button onClick={confirmDelete} className="font-['Plus_Jakarta_Sans',sans-serif] text-[0.85rem] font-bold px-5.5 py-2.5 rounded-full transition-all duration-300 tracking-wide bg-gradient-to-br from-[#ef4444] to-[#b91c1c] text-white shadow-[0_4px_16px_rgba(220,38,38,0.35)] uppercase border-none outline-none hover:-translate-y-[3px] hover:shadow-[0_8px_20px_rgba(220,38,38,0.5)] cursor-pointer w-auto mt-0 hover:from-red-500 hover:to-red-700">Delete Now</button>
+        <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-xl flex justify-center items-center z-[100] p-6 animate-in fade-in duration-300">
+          <div className="bg-white rounded-[3rem] w-full max-w-sm overflow-hidden shadow-2xl border border-white/50 animate-in zoom-in-95 duration-300">
+            <div className="p-10 text-center space-y-6">
+              <div className="w-20 h-20 bg-rose-50 rounded-3xl flex items-center justify-center mx-auto border border-rose-100">
+                <svg className="w-10 h-10 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </div>
+              <h3 className="text-2xl font-black tracking-tight text-slate-900">Delete Record?</h3>
+              <p className="text-slate-500 font-medium text-sm leading-relaxed">
+                This will permanently remove the booking from the database. This action cannot be undone.
+              </p>
+              <div className="flex gap-4">
+                <button onClick={() => setDeleteConfirmId(null)} className="flex-1 py-4 rounded-2xl text-slate-400 font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 transition-all">Keep</button>
+                <button onClick={confirmDelete} className="flex-1 py-4 rounded-2xl bg-rose-600 text-white font-black text-[10px] uppercase tracking-widest shadow-xl shadow-rose-600/20 hover:bg-rose-700 transition-all">Delete</button>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {showDeleteModal && (
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-[6px] flex justify-center items-center z-[1000] animate-[fadeInUp_0.3s_ease]">
-          <div className="bg-white/55 backdrop-blur-md border border-white/85 p-10 m-0 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] rounded-[24px] w-[360px] text-center">
-            <svg viewBox="0 0 24 24" className="w-[72px] h-[72px] mx-auto mb-6 fill-none stroke-[#dc2626] stroke-[2px] stroke-linecap-round stroke-linejoin-round drop-shadow-[0_4px_6px_rgba(220,38,38,0.2)]">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-              <polyline points="22 4 12 14.01 9 11.01"></polyline>
-            </svg>
-            <h3 className="font-['Sora',sans-serif] text-[1.35rem] text-[#0d1f4e] mb-2 font-bold select-none">Deleted Successfully</h3>
-            <p className="text-[#3b5080] mb-6 text-[0.95rem]">The booking has been permanently removed.</p>
-            <button onClick={() => setShowDeleteModal(false)} className="w-full font-['Plus_Jakarta_Sans',sans-serif] text-[1rem] font-bold p-[0.85rem] mt-0 rounded-full transition-all duration-300 tracking-wide bg-gradient-to-br from-[#1e56c8] to-[#1a3270] text-white shadow-[0_4px_12px_rgba(30,86,200,0.25)] uppercase outline-none border-none cursor-pointer hover:-translate-y-[3px] hover:shadow-[0_8px_20px_rgba(30,86,200,0.4)] hover:from-[#3b82f6] hover:to-[#1e56c8] active:translate-y-0">OK</button>
+      {showDeleteSuccess && (
+        <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-xl flex justify-center items-center z-[100] p-6 animate-in fade-in duration-300">
+          <div className="bg-white rounded-[3rem] w-full max-w-sm overflow-hidden shadow-2xl border border-white/50 animate-in zoom-in-95 duration-300">
+            <div className="p-10 text-center space-y-6">
+              <div className="w-20 h-20 bg-emerald-50 rounded-3xl flex items-center justify-center mx-auto border border-emerald-100">
+                <svg className="w-10 h-10 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <h3 className="text-2xl font-black tracking-tight text-slate-900">Purged!</h3>
+              <p className="text-slate-500 font-medium text-sm leading-relaxed">
+                The record has been successfully removed from the system logs.
+              </p>
+              <button 
+                onClick={() => setShowDeleteSuccess(false)} 
+                className="w-full py-4 rounded-2xl bg-slate-900 text-white font-black text-[10px] uppercase tracking-widest shadow-xl shadow-slate-900/20 hover:bg-slate-800 transition-all"
+              >
+                Continue
+              </button>
+            </div>
           </div>
         </div>
       )}

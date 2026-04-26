@@ -2,6 +2,7 @@ package com.smartcampus.backend.controller;
 
 import com.smartcampus.backend.model.User;
 import com.smartcampus.backend.service.UserService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,7 +21,7 @@ public class UserController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<?> register(@RequestBody User user) {
+    public ResponseEntity<?> register(@Valid @RequestBody User user) {
         try {
             User registeredUser = userService.registerUser(user);
             return ResponseEntity.ok(registeredUser);
@@ -42,6 +43,21 @@ public class UserController {
             Map<String, String> body = new HashMap<>();
             body.put("error", e.getMessage());
             return ResponseEntity.status(401).body(body); // 401 Unauthorized
+        }
+    }
+
+    @PostMapping("/social-login")
+    public ResponseEntity<?> socialLogin(@RequestBody Map<String, String> data) {
+        try {
+            String email = data.get("email");
+            String name = data.get("name");
+            String clerkId = data.get("clerkId");
+            User user = userService.processSocialLogin(email, name, clerkId);
+            return ResponseEntity.ok(user);
+        } catch (RuntimeException e) {
+            Map<String, String> body = new HashMap<>();
+            body.put("error", e.getMessage());
+            return ResponseEntity.badRequest().body(body);
         }
     }
 }

@@ -1,10 +1,16 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { registerUser } from "../services/authService";
+import { registerUser, socialLogin } from "../services/authService";
+import { useClerk } from '@clerk/clerk-react';
 
 function RegisterPage() {
+  const { authenticateWithRedirect } = useClerk();
   const navigate = useNavigate();
-  const [formData, setFormData] = useState({ name: "", itNumber: "", password: "" });
+  const [formData, setFormData] = useState({
+    name: "",
+    itNumber: "",
+    password: "",
+  });
   const [errorStr, setErrorStr] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -12,77 +18,212 @@ function RegisterPage() {
     e.preventDefault();
     setLoading(true);
     setErrorStr("");
-    
+
+    const nameRegex = /^[A-Za-z\s]+$/;
+    if (!nameRegex.test(formData.name)) {
+      setLoading(false);
+      setErrorStr("Name can only contain letters and spaces.");
+      return;
+    }
+
+    const itRegex = /^IT\d+$/i;
+    if (!itRegex.test(formData.itNumber)) {
+      setLoading(false);
+      setErrorStr("Invalid IT Number format. (e.g. IT21000000)");
+      return;
+    }
+
+    if (formData.password.length < 4 || formData.password.length > 6) {
+      setLoading(false);
+      setErrorStr("Password must be between 4 and 6 characters.");
+      return;
+    }
+
     try {
       await registerUser(formData);
       setLoading(false);
-      navigate("/login?registered=true");
+      // Pass IT Number and Password to login page for auto-fill
+      navigate(`/login?registered=true&it=${formData.itNumber}&pw=${formData.password}`);
     } catch (err) {
       setLoading(false);
-      setErrorStr(err.response?.data?.error || "Unable to reach server. Please restart backend!");
+      setErrorStr(err.response?.data?.error || "Unable to reach server.");
     }
   };
 
+  const handleSocialRegister = async (strategy) => {
+    try {
+      setLoading(true);
+      await authenticateWithRedirect({
+        strategy: strategy,
+        redirectUrl: "/dashboard",
+        redirectUrlComplete: "/dashboard"
+      });
+    } catch (err) {
+      setErrorStr(`${strategy} registration failed. Please try again.`);
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleClick = () => {
+    handleSocialRegister("oauth_google");
+  };
+
   return (
-    <div className="w-full mx-auto px-5 pb-12 text-left flex-1 animate-[fadeInUp_0.5s_ease_both] max-w-[480px] mt-16">
-      <div className="bg-white/55 backdrop-blur-md border border-white/85 rounded-3xl p-12 mb-6 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] transition-all duration-300 relative overflow-hidden text-center hover:bg-white/75 hover:border-white hover:-translate-y-1 hover:shadow-[0_12px_40px_0_rgba(31,38,135,0.1)]">
+    <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] p-6 font-['Plus_Jakarta_Sans',sans-serif]">
+      <div className="w-full max-w-6xl bg-white rounded-[3rem] shadow-2xl overflow-hidden flex flex-col md:flex-row-reverse min-h-[700px] animate-in fade-in zoom-in-95 duration-700">
         
-        <h2 className="font-['Sora',sans-serif] text-2xl font-bold text-[#0d1f4e] mb-2 tracking-[-0.02em] inline-block relative after:content-[''] after:absolute after:-bottom-1.5 after:left-[calc(50%-30px)] after:w-[60px] after:h-[3px] after:bg-gradient-to-r after:from-[#60a5fa] after:to-[#1e56c8] after:rounded-full">Student Registration</h2>
-        <p className="text-[#3b5080] text-[0.92rem] mb-8">Create your account to start booking campus resources.</p>
-        
-        {errorStr && (
-          <div className="bg-[#fee2e2] text-[#dc2626] p-3 rounded-xl mb-4 text-[0.9rem] font-semibold">
-            {errorStr}
-          </div>
-        )}
-
-        <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
+        {/* Right Side: Brand/Visual (Swapped for variety) */}
+        <div className="md:w-1/2 bg-slate-950 relative p-12 flex flex-col justify-between overflow-hidden">
+          <div className="absolute top-0 left-0 -ml-32 -mt-32 w-96 h-96 bg-blue-600/20 rounded-full blur-[100px]"></div>
+          <div className="absolute bottom-0 right-0 -mr-32 -mb-32 w-96 h-96 bg-emerald-600/20 rounded-full blur-[100px]"></div>
           
-          <div className="text-left">
-            <label className="text-[0.85rem] font-semibold text-[#1a3270] mb-1.5 block">Full Name *</label>
-            <input 
-              type="text" 
-              placeholder="e.g. John Doe"
-              value={formData.name}
-              onChange={(e) => setFormData({...formData, name: e.target.value})}
-              className="w-full font-['Plus_Jakarta_Sans',sans-serif] text-[0.95rem] py-3 px-5 border-[1.5px] border-white/85 rounded-full bg-white/45 text-[#0d1f4e] transition-all duration-300 outline-none block placeholder-[#7a93c4] focus:border-[#1e56c8] focus:shadow-[0_0_0_4px_rgba(30,86,200,0.15)] focus:bg-white hover:not(:focus):border-[#7a93c4] hover:not(:focus):bg-white/65"
-              required 
-            />
+          <div className="relative z-10">
+             <div className="flex items-center gap-3 mb-16">
+                <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2-2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                  </svg>
+                </div>
+                <span className="text-xl font-black text-white tracking-tight">SLIIT <span className="text-blue-400">SmartCampus</span></span>
+              </div>
+              
+              <div className="space-y-6 text-left">
+                <h1 className="text-5xl font-black text-white leading-[1.1] tracking-tight">
+                  Join the <br/>
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">Community</span>
+                </h1>
+                <p className="text-slate-400 text-lg font-medium leading-relaxed max-w-md">
+                  Unlock access to all campus facilities. Fast registration for all SLIIT Malabe students.
+                </p>
+              </div>
           </div>
 
-          <div className="text-left">
-            <label className="text-[0.85rem] font-semibold text-[#1a3270] mb-1.5 block">IT Number *</label>
-            <input 
-              type="text" 
-              placeholder="e.g. IT21000000"
-              value={formData.itNumber}
-              onChange={(e) => setFormData({...formData, itNumber: e.target.value})}
-              className="w-full font-['Plus_Jakarta_Sans',sans-serif] text-[0.95rem] py-3 px-5 border-[1.5px] border-white/85 rounded-full bg-white/45 text-[#0d1f4e] transition-all duration-300 outline-none block placeholder-[#7a93c4] focus:border-[#1e56c8] focus:shadow-[0_0_0_4px_rgba(30,86,200,0.15)] focus:bg-white hover:not(:focus):border-[#7a93c4] hover:not(:focus):bg-white/65"
-              required 
-            />
+          <div className="relative z-10 pt-12 text-left">
+            <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-3xl p-6 space-y-4">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 bg-emerald-500/20 text-emerald-400 rounded-xl flex items-center justify-center">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div className="text-sm font-bold text-white tracking-tight">Instant Approval Logic</div>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 bg-blue-500/20 text-blue-400 rounded-xl flex items-center justify-center">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                </div>
+                <div className="text-sm font-bold text-white tracking-tight">Secure Data Protection</div>
+              </div>
+            </div>
           </div>
+        </div>
 
-          <div className="text-left">
-            <label className="text-[0.85rem] font-semibold text-[#1a3270] mb-1.5 block">Password *</label>
-            <input 
-              type="password" 
-              placeholder="••••••••"
-              value={formData.password}
-              onChange={(e) => setFormData({...formData, password: e.target.value})}
-              className="w-full font-['Plus_Jakarta_Sans',sans-serif] text-[0.95rem] py-3 px-5 border-[1.5px] border-white/85 rounded-full bg-white/45 text-[#0d1f4e] transition-all duration-300 outline-none block placeholder-[#7a93c4] focus:border-[#1e56c8] focus:shadow-[0_0_0_4px_rgba(30,86,200,0.15)] focus:bg-white hover:not(:focus):border-[#7a93c4] hover:not(:focus):bg-white/65"
-              required 
-            />
+        {/* Left Side: Form */}
+        <div className="md:w-1/2 p-12 md:p-20 flex flex-col justify-center bg-white text-left">
+          <div className="max-w-md mx-auto w-full space-y-10">
+            <div className="space-y-2">
+              <h2 className="text-3xl font-black text-slate-900 tracking-tight">Create Account</h2>
+              <p className="text-slate-500 font-medium">Get started with your student portal.</p>
+            </div>
+
+            {errorStr && (
+              <div className="p-4 bg-rose-50 border border-rose-100 rounded-2xl text-rose-600 text-sm font-bold animate-in fade-in slide-in-from-top-2">
+                {errorStr}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Full Name</label>
+                {/* Dummy hidden input to catch browser auto-fill */}
+                <input type="text" style={{ display: 'none' }} aria-hidden="true" />
+                
+                <input
+                  type="text"
+                  id="student_full_name_field_unique"
+                  name="student_full_name_field_unique"
+                  value={formData.name}
+                  onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  placeholder="Your Full Name"
+                  autoComplete="new-off"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 px-6 font-bold text-slate-900 outline-none focus:bg-white focus:border-blue-500 transition-all"
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">IT Number</label>
+                {/* Second Trap */}
+                <input type="text" style={{ display: 'none' }} aria-hidden="true" />
+                <input
+                  type="text"
+                  id="unique_reg_it_id_v2"
+                  name="unique_reg_it_id_v2"
+                  value={formData.itNumber}
+                  onChange={(e) => setFormData({...formData, itNumber: e.target.value})}
+                  placeholder="IT21000000"
+                  autoComplete="off-random-string"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 px-6 font-bold text-slate-900 outline-none focus:bg-white focus:border-blue-500 transition-all"
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Password</label>
+                {/* Password Trap */}
+                <input type="password" style={{ display: 'none' }} aria-hidden="true" />
+                <input
+                  type="password"
+                  id="unique_reg_pass_field_v2"
+                  name="unique_reg_pass_field_v2"
+                  value={formData.password}
+                  onChange={(e) => setFormData({...formData, password: e.target.value})}
+                  placeholder="4-6 characters only"
+                  autoComplete="new-password"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 px-6 font-bold text-slate-900 outline-none focus:bg-white focus:border-blue-500 transition-all"
+                  required
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-5 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-blue-600/20 hover:bg-blue-700 transition-all active:scale-[0.98] disabled:opacity-50"
+              >
+                {loading ? "Creating Account..." : "Create Account"}
+              </button>
+
+              <div className="relative flex items-center gap-4 py-2">
+                <div className="flex-1 h-px bg-slate-100"></div>
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Or Register with</span>
+                <div className="flex-1 h-px bg-slate-100"></div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleGoogleClick}
+                disabled={loading}
+                className="w-full flex items-center justify-center gap-3 py-4 bg-white border border-slate-200 rounded-2xl font-bold text-slate-700 hover:bg-slate-50 transition-all active:scale-[0.98] disabled:opacity-50"
+              >
+                <svg className="w-5 h-5" viewBox="0 0 24 24">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-1 .67-2.26 1.07-3.71 1.07-2.87 0-5.3-1.94-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                  <path fill="#FBBC05" d="M5.84 14.04c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.01H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.99l3.66-2.95z"/>
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.01l3.66 2.95c.86-2.59 3.3-4.53 6.16-4.53z"/>
+                </svg>
+                <span className="text-xs uppercase tracking-widest">Register with Google</span>
+              </button>
+            </form>
+
+            <div className="pt-8 text-center border-t border-slate-100">
+              <p className="text-slate-500 text-sm font-medium">
+                Already have an account? <Link to="/login" className="text-blue-600 font-black hover:underline underline-offset-4">Sign In</Link>
+              </p>
+            </div>
           </div>
-          
-          <button type="submit" disabled={loading} className="w-full p-3.5 text-[0.95rem] mt-5 bg-gradient-to-br from-[#60a5fa] to-[#3b82f6] shadow-[0_6px_16px_rgba(96,165,250,0.3)] hover:from-[#3b82f6] hover:to-[#1e56c8] hover:shadow-[0_10px_24px_rgba(96,165,250,0.45)] text-white font-bold rounded-full border-none cursor-pointer flex justify-center items-center transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed">
-            {loading ? "Registering..." : "Create Account"}
-          </button>
-        </form>
-
-        <p className="mt-7 text-[0.9rem] text-[#3b5080]">
-          Already have an account? <Link to="/login" className="text-[#1e56c8] font-bold no-underline hover:text-[#1a3270]">Sign In</Link>
-        </p>
-
+        </div>
       </div>
     </div>
   );

@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { loginUser } from "../services/authService";
+import { loginUser, socialLogin } from "../services/authService";
+import { useClerk } from '@clerk/clerk-react';
 
 function LoginPage() {
+  const { authenticateWithRedirect } = useClerk();
   const navigate = useNavigate();
   const location = useLocation();
   const [formData, setFormData] = useState({ itNumber: "", password: "" });
@@ -12,12 +14,15 @@ function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // Check if redirected from registration successful
     const params = new URLSearchParams(location.search);
     if (params.get("registered") === "true") {
-      setSuccessMsg("Registration successful! Please sign in.");
+      setSuccessMsg("Registration successful! Your credentials have been auto-filled.");
+      const it = params.get("it");
+      const pw = params.get("pw");
+      if (it && pw) {
+        setFormData({ itNumber: it, password: pw });
+      }
     }
-    // Auto logout previous user when arriving at login
     localStorage.removeItem("currentUserId");
     localStorage.removeItem("currentUserName");
   }, [location.search]);
@@ -36,100 +41,230 @@ function LoginPage() {
         navigate("/admin-bookings");
       } else {
         setLoading(false);
-        setErrorStr("Invalid Admin Credentials. Please use username 'admin' and password 'admin123'.");
+        setErrorStr("Invalid Admin Credentials.");
       }
     } else {
+      const itRegex = /^IT\d+$/i;
+      if (!itRegex.test(formData.itNumber)) {
+        setLoading(false);
+        setErrorStr("Invalid IT Number format.");
+        return;
+      }
       try {
         const resp = await loginUser(formData);
-        // Validated user! Set their IT Number directly into storage for forms
         localStorage.setItem("currentUserId", resp.data.itNumber);
         localStorage.setItem("currentUserName", resp.data.name);
         setLoading(false);
-        navigate("/"); // Send to Create Booking form
+        navigate("/dashboard");
       } catch (err) {
         setLoading(false);
-        setErrorStr(err.response?.data?.error || "Unable to reach server. Is the Java backend running after the update?");
+        setErrorStr(err.response?.data?.error || "Unable to reach server.");
       }
     }
   };
 
+  const handleSocialLogin = async (strategy) => {
+    try {
+      setLoading(true);
+      await authenticateWithRedirect({
+        strategy: strategy,
+        redirectUrl: "http://localhost:3000/dashboard",
+        redirectUrlComplete: "http://localhost:3000/dashboard"
+      });
+    } catch (err) {
+      console.error("Clerk Auth Error:", err);
+      setErrorStr(err.errors ? err.errors[0].longMessage : "Connection failed. Please use the Debug button below.");
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleClick = () => {
+    handleSocialLogin("oauth_google");
+  };
+
+  const handleFacebookClick = () => {
+    handleSocialLogin("oauth_facebook");
+  };
+
   return (
-    <div className="flex justify-center items-center min-h-screen">
-      <div className="bg-[#fdfdfd] rounded-[28px] py-12 px-10 w-full max-w-[400px] shadow-[0_20px_50px_rgba(0,0,0,0.05)] text-center">
-        <h2 className="m-0 mb-2 text-[1.6rem] text-slate-900 relative inline-block font-extrabold after:content-[''] after:absolute after:-bottom-1.5 after:left-1/2 after:-translate-x-1/2 after:w-[60px] after:h-[3px] after:bg-blue-500 after:rounded-[2px]">Welcome Back</h2>
-        <p className="text-slate-500 text-[0.9rem] mb-10">Sign in to the Student Resource Portal.</p>
+    <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] p-6 font-['Plus_Jakarta_Sans',sans-serif]">
+      <div className="w-full max-w-6xl bg-white rounded-[3rem] shadow-2xl overflow-hidden flex flex-col md:flex-row min-h-[700px] animate-in fade-in zoom-in-95 duration-700">
         
-        {successMsg && (
-          <div className="bg-emerald-100 text-emerald-800 p-3 rounded-xl mb-6 text-[0.9rem] font-semibold">
-            ✅ {successMsg}
-          </div>
-        )}
-
-        {errorStr && (
-          <div className="bg-red-100 text-red-800 p-3 rounded-xl mb-6 text-[0.9rem] font-semibold">
-            {errorStr}
-          </div>
-        )}
-
-        <form onSubmit={handleMainSubmit}>
-          <div className="flex justify-center gap-8 mb-8">
-            <label className="flex items-center gap-2 cursor-pointer text-slate-600 text-[0.85rem] text-left leading-[1.3]">
-              <input 
-                type="radio" 
-                name="role" 
-                value="student" 
-                checked={role === "student"}
-                onChange={(e) => setRole(e.target.value)}
-                className="accent-fuchsia-600 w-[1.1rem] h-[1.1rem] cursor-pointer m-0"
-              />
-              <span>Student<br/>Login</span>
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer text-slate-600 text-[0.85rem] text-left leading-[1.3]">
-              <input 
-                type="radio" 
-                name="role" 
-                value="admin" 
-                checked={role === "admin"}
-                onChange={(e) => setRole(e.target.value)}
-                className="accent-fuchsia-600 w-[1.1rem] h-[1.1rem] cursor-pointer m-0"
-              />
-              <span>Admin<br/>Login</span>
-            </label>
-          </div>
-
-          <div className="text-left mb-5">
-            <label className="block mb-1.5 text-[0.8rem] font-bold text-slate-900">
-              {role === "admin" ? "Admin Username" : "IT Number"}
-            </label>
-            <input 
-              type="text" 
-              className="w-full bg-[#f0f4f8] border border-transparent rounded-full py-[0.85rem] px-5 text-[0.95rem] text-slate-800 box-border outline-none transition-all duration-200 focus:bg-white focus:border-blue-500 focus:shadow-[0_0_0_3px_rgba(59,130,246,0.15)]"
-              value={formData.itNumber}
-              onChange={(e) => setFormData({...formData, itNumber: e.target.value})}
-              required 
-            />
-          </div>
-
-          <div className="text-left mb-5">
-            <label className="block mb-1.5 text-[0.8rem] font-bold text-slate-900">Password</label>
-            <input 
-              type="password" 
-              className="w-full bg-[#f0f4f8] border border-transparent rounded-full py-[0.85rem] px-5 text-[0.95rem] text-slate-800 box-border outline-none transition-all duration-200 focus:bg-white focus:border-blue-500 focus:shadow-[0_0_0_3px_rgba(59,130,246,0.15)]"
-              value={formData.password}
-              onChange={(e) => setFormData({...formData, password: e.target.value})}
-              required 
-            />
-          </div>
+        {/* Left Side: Brand/Visual */}
+        <div className="md:w-1/2 bg-slate-900 relative p-12 flex flex-col justify-between overflow-hidden">
+          <div className="absolute top-0 right-0 -mr-32 -mt-32 w-96 h-96 bg-blue-600/20 rounded-full blur-[100px]"></div>
+          <div className="absolute bottom-0 left-0 -ml-32 -mb-32 w-96 h-96 bg-indigo-600/20 rounded-full blur-[100px]"></div>
+          <div className="absolute inset-0 opacity-[0.05]" style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '40px 40px' }}></div>
           
-          <button type="submit" className="w-full bg-blue-500 text-white font-bold py-4 rounded-full border-none text-base cursor-pointer mt-4 transition-all duration-200 shadow-[0_4px_14px_rgba(59,130,246,0.3)] hover:bg-blue-600 hover:-translate-y-0.5" disabled={loading}>
-            {loading ? "AUTHENTICATING..." : "SIGN IN"}
-          </button>
-        </form>
+          <div className="relative z-10">
+             <div className="flex items-center gap-3 mb-16">
+                <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2-2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                  </svg>
+                </div>
+                <span className="text-xl font-black text-white tracking-tight">SLIIT <span className="text-blue-400">SmartCampus</span></span>
+              </div>
+              
+              <div className="space-y-6">
+                <h1 className="text-5xl font-black text-white leading-[1.1] tracking-tight">
+                  Connect to your <br/>
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-300">Campus Hub</span>
+                </h1>
+                <p className="text-slate-400 text-lg font-medium leading-relaxed max-w-md">
+                  Experience the next generation of campus resource management. Fast, secure, and always available.
+                </p>
+              </div>
+          </div>
 
-        <p className="mt-8 text-[0.9rem] text-slate-500">
-          New student? <Link to="/register" className="text-blue-600 font-bold no-underline">Create an Account</Link>
-        </p>
+          <div className="relative z-10 pt-12 border-t border-white/5">
+            <div className="flex gap-8">
+              <div>
+                <div className="text-white font-black text-2xl tracking-tighter">50+</div>
+                <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Resources</div>
+              </div>
+              <div>
+                <div className="text-white font-black text-2xl tracking-tighter">10k+</div>
+                <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Students</div>
+              </div>
+            </div>
+          </div>
+        </div>
 
+        {/* Right Side: Form */}
+        <div className="md:w-1/2 p-12 md:p-20 flex flex-col justify-center bg-white">
+          <div className="max-w-md mx-auto w-full space-y-10">
+            <div className="text-center md:text-left space-y-2">
+              <h2 className="text-3xl font-black text-slate-900 tracking-tight">Welcome Back</h2>
+              <p className="text-slate-500 font-medium">Please enter your credentials to continue.</p>
+            </div>
+
+            {successMsg && (
+              <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl text-emerald-600 text-sm font-bold animate-in fade-in slide-in-from-top-2">
+                {successMsg}
+              </div>
+            )}
+
+            {errorStr && (
+              <div className="p-4 bg-rose-50 border border-rose-100 rounded-2xl text-rose-600 text-sm font-bold animate-in fade-in slide-in-from-top-2">
+                {errorStr}
+              </div>
+            )}
+
+            <form onSubmit={handleMainSubmit} className="space-y-6">
+              <div className="flex p-1 bg-slate-100 rounded-2xl">
+                <button
+                  type="button"
+                  onClick={() => setRole("student")}
+                  className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${role === "student" ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+                >
+                  Student
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRole("admin")}
+                  className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${role === "admin" ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+                >
+                  Administrator
+                </button>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{role === "admin" ? "Admin ID" : "IT Number"}</label>
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-5 flex items-center text-slate-400 group-focus-within:text-blue-600 transition-colors">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                  </div>
+                  <input
+                    type="text"
+                    value={formData.itNumber}
+                    onChange={(e) => setFormData({...formData, itNumber: e.target.value})}
+                    placeholder={role === "admin" ? "Username" : "IT21000000"}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 pl-14 pr-6 font-bold text-slate-900 outline-none focus:bg-white focus:border-blue-500 focus:shadow-2xl focus:shadow-blue-500/5 transition-all"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Password</label>
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-5 flex items-center text-slate-400 group-focus-within:text-blue-600 transition-colors">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                  </div>
+                  <input
+                    type="password"
+                    value={formData.password}
+                    onChange={(e) => setFormData({...formData, password: e.target.value})}
+                    placeholder="••••••••"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 pl-14 pr-6 font-bold text-slate-900 outline-none focus:bg-white focus:border-blue-500 focus:shadow-2xl focus:shadow-blue-500/5 transition-all"
+                    required
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-5 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-blue-600/20 hover:bg-blue-700 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-3"
+              >
+                {loading ? "Authenticating..." : (
+                  <>
+                    <span>Sign In</span>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                    </svg>
+                  </>
+                )}
+              </button>
+
+              <div className="relative flex items-center gap-4 py-2">
+                <div className="flex-1 h-px bg-slate-100"></div>
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Or continue with</span>
+                <div className="flex-1 h-px bg-slate-100"></div>
+              </div>
+
+              {/* <div className="grid grid-cols-2 gap-4">
+                <button
+                  type="button"
+                  onClick={handleGoogleClick}
+                  disabled={loading}
+                  className="flex items-center justify-center gap-3 py-4 bg-white border border-slate-200 rounded-2xl font-bold text-slate-700 hover:bg-slate-50 transition-all active:scale-[0.98] disabled:opacity-50"
+                >
+                  <svg className="w-5 h-5" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-1 .67-2.26 1.07-3.71 1.07-2.87 0-5.3-1.94-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                    <path fill="#FBBC05" d="M5.84 14.04c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.01H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.99l3.66-2.95z"/>
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.01l3.66 2.95c.86-2.59 3.3-4.53 6.16-4.53z"/>
+                  </svg>
+                  <span className="text-xs uppercase tracking-widest">Google</span>
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={handleFacebookClick}
+                  disabled={loading}
+                  className="flex items-center justify-center gap-3 py-4 bg-white border border-slate-200 rounded-2xl font-bold text-slate-700 hover:bg-slate-50 transition-all active:scale-[0.98] disabled:opacity-50"
+                >
+                  <svg className="w-5 h-5" fill="#1877F2" viewBox="0 0 24 24">
+                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                  </svg>
+                  <span className="text-xs uppercase tracking-widest">Facebook</span>
+                </button>
+              </div> */}
+            </form>
+
+            <div className="pt-8 text-center border-t border-slate-100">
+              <p className="text-slate-500 text-sm font-medium">
+                New student? <Link to="/register" className="text-blue-600 font-black hover:underline underline-offset-4">Create an Account</Link>
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
